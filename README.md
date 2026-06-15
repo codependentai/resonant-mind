@@ -22,7 +22,7 @@
 
 ## What It Does
 
-Resonant Mind is a Model Context Protocol (MCP) server that provides 27 tools for persistent memory:
+Resonant Mind is a Model Context Protocol (MCP) server that provides 28 tools for persistent memory:
 
 **Core Memory**
 - **Entities & Observations** — Knowledge graph with typed entities, weighted observations, and contextual namespaces
@@ -59,7 +59,7 @@ Resonant Mind is a Model Context Protocol (MCP) server that provides 27 tools fo
 ┌─────────────────────────────────────────────┐
 │              Cloudflare Worker              │
 │                                            │
-│  MCP Protocol ←→ 27 Tool Handlers          │
+│  MCP Protocol ←→ 28 Tool Handlers          │
 │  REST API     ←→ Data Endpoints            │
 │  Cron Trigger ←→ Subconscious Daemon       │
 │                                            │
