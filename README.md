@@ -6,7 +6,7 @@ Resonant Mind began as persistent memory infrastructure and was subsequently res
 
 ## Status
 
-This branch is the **v4 Reshape preview**.
+This is **v4.0.0 — the Reshape release**.
 
 - Postgres-only: Neon through Cloudflare Hyperdrive
 - 47 MCP tools organised by kinds of act

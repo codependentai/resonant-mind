@@ -4,9 +4,9 @@ All notable changes to Resonant Mind. Previously released as "Mind Cloud" (v1.0â
 
 ---
 
-## [4.0.0-reshape.1] - 2026-07-14
+## [4.0.0] - 2026-07-14
 
-### Reshape preview
+### The Reshape release
 
 - Ported the 47-tool act-oriented cognitive architecture and isolated subconscious metabolism.
 - Moved the public core to single-mind Neon Postgres through Hyperdrive; D1 is no longer supported.
