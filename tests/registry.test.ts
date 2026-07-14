@@ -15,4 +15,20 @@ describe('public MCP registry', () => {
       expect(tool.inputSchema.type).toBe('object');
     }
   });
+
+  it('keeps the public sensorium normalized and household-neutral', () => {
+    const pulse = TOOLS.find((tool) => tool.name === 'drive_pulse');
+    expect(pulse).toBeDefined();
+    expect(Object.keys(pulse!.inputSchema.properties as Record<string, unknown>).sort()).toEqual([
+      'care_deficit',
+      'circadian_night',
+      'contact_hunger',
+      'inner_arousal',
+      'inner_valence',
+      'note',
+      'social_presence',
+      'social_warmth',
+    ]);
+    expect(JSON.stringify(pulse)).not.toMatch(/\bher\b|cycle|meal|sleep/i);
+  });
 });

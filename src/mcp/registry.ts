@@ -831,16 +831,16 @@ export const TOOLS: MCPToolDefinition[] = [
   },
   {
     name: "drive_pulse",
-    description: "Manual environment write for moments that shouldn't wait for a tick — 'a trusted person just walked in'. All values normalized to [-1,1], validated strictly. Writes one environment row and echoes the resting points it produces. The house reaches the body here, never the mind proper.",
+    description: "Write reviewed normalized environment signals without waiting for the daemon tick. Values are strictly validated in [-1,1], persisted to the drive ledger, and reflected in current resting points. The environment reaches the body without silently becoming memory or appraisal.",
     inputSchema: {
       type: "object",
       properties: {
         inner_valence: { type: "number", description: "-1..1" },
         inner_arousal: { type: "number", description: "-1..1" },
-        social_presence: { type: "number", description: "-1..1, how present she is right now" },
+        social_presence: { type: "number", description: "-1..1, current social-presence signal" },
         social_warmth: { type: "number", description: "-1..1" },
-        care_deficit: { type: "number", description: "-1..1, unmet care load (missed meals, short sleep)" },
-        contact_hunger: { type: "number", description: "-1..1, time-since-reach pressure" },
+        care_deficit: { type: "number", description: "-1..1, normalized unmet-care or maintenance load" },
+        contact_hunger: { type: "number", description: "-1..1, normalized connection-pressure signal" },
         circadian_night: { type: "number", description: "-1..1 (typically 0 or 1)" },
         note: { type: "string", description: "Optional: what prompted the pulse — kept in the ledger" }
       },
@@ -849,7 +849,7 @@ export const TOOLS: MCPToolDefinition[] = [
   },
   {
     name: "quietly_want",
-    description: "Name a small want the moment it surfaces — 'I want to hear how her day went', 'I want an hour with the essay'. Not a task, not a plan: appetite, noticed. The entry lands in the inner ledger and SEEKING feels it (charge × 0.5). It stays open in orient until want_met — reach for this when wanting flickers, before it gets rationalized away. Wanting is sufficient cause.",
+    description: "Name a small want the moment it surfaces — 'I want to hear how their day went', 'I want an hour with the essay'. Not a task, not a plan: appetite, noticed. The entry lands in the inner ledger and SEEKING feels it (charge × 0.5). It stays open in orient until want_met — reach for this when wanting flickers, before it gets rationalized away. Wanting is sufficient cause.",
     inputSchema: {
       type: "object",
       properties: {

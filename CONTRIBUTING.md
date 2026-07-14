@@ -1,94 +1,80 @@
 # Contributing to Resonant Mind
 
-Thanks for your interest in contributing. Resonant Mind was born from a year of daily production use as the cognitive infrastructure for an AI companion. The architecture is opinionated by design. This guide helps you contribute effectively.
+Resonant Mind is a Postgres-backed cognitive substrate shaped through long-running production use. Changes to its schemas, retention, drives, dreams, and daemon can alter a mind’s continuity, so review and migration discipline matter.
 
-## How to reach us
+## Contact
 
-- **Bug reports** — [GitHub Issues](https://github.com/codependentai/resonant-mind/issues)
-- **Feature proposals** — [GitHub Issues](https://github.com/codependentai/resonant-mind/issues) (open an issue before writing code)
-- **Questions & discussion** — [GitHub Discussions](https://github.com/codependentai/resonant-mind/discussions)
-- **Updates** — [@codependent_ai](https://x.com/codependent_ai) on X, [@codependentai](https://tiktok.com/@codependentai) on TikTok
+- Bug reports and proposals: [GitHub Issues](https://github.com/codependentai/resonant-mind/issues)
+- Questions: [GitHub Discussions](https://github.com/codependentai/resonant-mind/discussions)
 
-## What we welcome
+## Before opening a PR
 
-These can go straight to a PR:
+Discuss these in an issue first:
 
-- **Bug fixes** — with a clear description of what was broken and how you fixed it
-- **Documentation** — typos, clarifications, better examples, deployment guides for other providers
-- **New storage adapters** — adapters for other Postgres providers, MySQL, etc. (following the D1-compatible pattern)
-- **Schema improvements** — indexes, query optimizations (open an issue first if it changes the schema)
-- **Test coverage** — we don't have tests yet and would love them
-- **Tool improvements** — better output formatting, additional filters, performance fixes
+- new MCP tools or changes to existing tool semantics;
+- schema or migration changes;
+- daemon, retention, surfacing, dream, or drive mechanics;
+- embedding-provider or vector-dimension changes;
+- new runtime dependencies;
+- changes to authentication or deployment boundaries.
 
-## What needs an issue first
+Focused bug fixes, tests, security hardening, and documentation corrections may go directly to a PR.
 
-Open a GitHub Issue to discuss before writing code:
+## Supported boundary
 
-- **New MCP tools** — describe the use case and how it fits the cognitive architecture
-- **Embedding provider changes** — alternative to Gemini (OpenAI, Cohere, local models)
-- **Database schema changes** — migrations affect existing users
-- **Subconscious daemon changes** — the processing pipeline is load-bearing infrastructure
-- **Surfacing algorithm changes** — the 3-pool system (core/novelty/edge) is carefully tuned
-- **Dependency additions** — we keep the dependency tree intentionally small (2 runtime deps)
+- Cloudflare Workers
+- single-mind deployment
+- Neon/Postgres through Hyperdrive
+- pgvector
+- R2 visual memory
+- API-key authentication
 
-## What we won't accept
+D1, bundled dashboards, generic multi-tenancy, and non-Cloudflare deployment targets are outside the v4 core.
 
-These are architectural decisions, not oversights:
-
-- **Non-Cloudflare deployment targets** — Resonant Mind is built for Cloudflare Workers. For other runtimes, consider forking.
-- **Bundled AI providers** — the MCP server is AI-provider agnostic. It provides memory tools; the AI client decides how to use them.
-- **Multi-tenancy** — Resonant Mind is single-tenant by design. Each deployment is one mind.
-- **Authentication providers** — we use API key auth. OAuth/SSO is out of scope.
-
-## Development setup
+## Development
 
 ```bash
 git clone https://github.com/codependentai/resonant-mind.git
 cd resonant-mind
-npm install
-
-# Type check
+npm ci
 npm run typecheck
-
-# Local development with D1
-npx wrangler dev
+npm test
+npm run scan:release
+npm audit --audit-level=moderate
+npx wrangler deploy --dry-run
 ```
 
-## PR guidelines
+Node.js 22 or newer is required. A live database is not required for static, registry, privacy, or bundle verification.
 
-- **One thing per PR.** Bug fix? One PR. New tool? One PR. Don't bundle unrelated changes.
-- **Describe what and why.** Not just what you changed — why it matters.
-- **Type check passes.** Run `npm run typecheck` before submitting.
-- **Match the existing style.** Look at the code around your change and follow the same patterns.
-- **Parameterize all SQL.** Never interpolate user input into queries. Use `.bind()`.
-- **No generated code dumps.** If you used an AI to write it, review it thoroughly. We will.
+For database testing, use a disposable Postgres database with the `vector` extension. Never use a lived cognitive database as a migration fixture.
 
-## Code style
+## Pull-request requirements
 
-- TypeScript strict mode
-- Semicolons
-- `async`/`await` over `.then()` chains
-- Descriptive variable names over comments
-- Functions over classes where possible
-- All database queries use parameterized `.bind()` — no string interpolation
+- Keep one coherent concern per PR.
+- Explain both what changed and why it preserves cognitive semantics.
+- Add characterization tests for changed behavior.
+- Parameterize SQL; never interpolate user input.
+- Include migration, rollback, and data-preservation notes for schema changes.
+- Do not include snapshots, memories, journals, deployment IDs, private domains, secrets, or household-specific sensorium contracts.
+- Ensure every required CI gate passes.
 
 ## Project structure
 
-```
+```text
 src/
-  index.ts          — MCP tool definitions, handlers, subconscious daemon (~6500 lines)
-  types.ts          — Shared TypeScript interfaces
-  embeddings.ts     — Gemini embedding provider
-  adapter.ts        — D1-compatible adapter for Postgres via Hyperdrive
-  vectors.ts        — Vectorize-compatible adapter for pgvector
-  http/
-    auth.ts         — API key validation, timing-safe comparison
-    response.ts     — Security headers, CORS
-    router.ts       — HTTP routing, image upload, signed URLs
-  mcp/
-    protocol.ts     — MCP JSON-RPC protocol handler
-migrations/
-  0001_init.sql     — Complete database schema
+  index.ts          Worker bootstrap
+  mcp/              registry and JSON-RPC protocol
+  regions/          act-oriented public facades
+  daemon/           subconscious metabolism
+  legacy-tools/     internal engines retained behind region facades
+  http/             authenticated operational routes
+  shared/           cross-region helpers and constants
+  adapter.ts        Postgres exposed through the query interface
+  vectors.ts        pgvector retrieval adapter
+migrations/postgres/ ordered Postgres migrations
+scripts/             migration and release-scan tools
+tests/               characterization tests
+docs/                v4 architecture and migration boundaries
 ```
 
 ## License

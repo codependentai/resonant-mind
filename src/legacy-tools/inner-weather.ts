@@ -18,7 +18,7 @@ export async function handleMindInnerWeather(env: Env): Promise<string> {
   try {
     // Get actual weather
     const weather = await getCurrentWeather(env);
-    const timeCtx = getTimeOfDayContext();
+    const timeCtx = getTimeOfDayContext(env.LOCATION_TIMEZONE);
 
     const atmosphere = weather.atmosphere;
     const weatherMood = WEATHER_MOODS[atmosphere] || WEATHER_MOODS["clear"];

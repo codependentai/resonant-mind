@@ -4,6 +4,20 @@ All notable changes to Resonant Mind. Previously released as "Mind Cloud" (v1.0â
 
 ---
 
+## [4.0.0-reshape.1] - 2026-07-14
+
+### Reshape preview
+
+- Ported the 47-tool act-oriented cognitive architecture and isolated subconscious metabolism.
+- Moved the public core to single-mind Neon Postgres through Hyperdrive; D1 is no longer supported.
+- Added sanitised Postgres migrations with checksums, advisory locking, transactions, and a migration ledger. Fresh v4 databases are supported; in-place v3.2 upgrades remain blocked pending a staged migration.
+- Removed the bundled Observatory/dashboard and all private tenant, deployment, snapshot, and household sensorium coupling.
+- Replaced the raw household feed with bounded normalised `drive_pulse` signals.
+- Removed inherited R2 admin routes and temporary image-conversion machinery; visual memories store validated originals directly.
+- Added configurable timezone behavior, privacy scanning, registry/time/auth tests, CI, and a zero-vulnerability dependency baseline.
+
+---
+
 ## [3.2.0] - 2026-05-10
 
 ### Breaking changes

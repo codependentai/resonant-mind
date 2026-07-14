@@ -106,7 +106,7 @@ interface AppRouteHandlers {
   handleApiDreamLast(request: Request, env: Env): Promise<Response>;
   handleApiDreamComposeTest(request: Request, env: Env): Promise<Response>;
   handleApiTelemetry(request: Request, env: Env): Promise<Response>;
-  handleApiDrivesEnv(request: Request, env: Env): Promise<Response>;
+
   handleMCPRequest(request: Request, env: Env): Promise<Response>;
 }
 
@@ -157,41 +157,16 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
       .replace(/[^a-zA-Z0-9_-]/g, "_")
       .replace(/_+/g, "_")
       .slice(0, 60);
-    const rawKey = `_tmp_${date}_${safeName}`;
-    const webpKey = `${date}_${safeName}.webp`;
+    const ext = mimeType === "image/jpeg" ? ".jpg"
+      : mimeType === "image/webp" ? ".webp"
+      : mimeType === "image/gif" ? ".gif"
+      : ".png";
+    const storedKey = `${date}_${safeName}${ext}`;
+    await env.R2_IMAGES.put(storedKey, rawBytes, { httpMetadata: { contentType: mimeType } });
 
-    await env.R2_IMAGES.put(rawKey, rawBytes, { httpMetadata: { contentType: mimeType } });
-
-    let storedPath: string;
-    let finalBytes: Uint8Array = rawBytes;
-    let finalMime = mimeType;
-
-    try {
-      if (!env.WORKER_URL) throw new Error("WORKER_URL is required for image conversion");
-      const r2Url = `${env.WORKER_URL.replace(/\/$/, "")}/r2/${rawKey}`;
-      const webpResponse = await fetch(r2Url, {
-        cf: { image: { format: "webp", quality: 80, fit: "scale-down", width: 1920, height: 1920 } },
-      });
-      if (webpResponse.ok) {
-        const webpBuffer = await webpResponse.arrayBuffer();
-        finalBytes = new Uint8Array(webpBuffer);
-        finalMime = "image/webp";
-        await env.R2_IMAGES.put(webpKey, webpBuffer, { httpMetadata: { contentType: "image/webp" } });
-        storedPath = `${R2_IMAGE_PATH_PREFIX}${webpKey}`;
-      } else {
-        const ext = mimeType === "image/jpeg" ? ".jpg" : ".png";
-        const fallbackKey = `${date}_${safeName}${ext}`;
-        await env.R2_IMAGES.put(fallbackKey, rawBytes, { httpMetadata: { contentType: mimeType } });
-        storedPath = `${R2_IMAGE_PATH_PREFIX}${fallbackKey}`;
-      }
-    } catch {
-      const ext = mimeType === "image/jpeg" ? ".jpg" : ".png";
-      const fallbackKey = `${date}_${safeName}${ext}`;
-      await env.R2_IMAGES.put(fallbackKey, rawBytes, { httpMetadata: { contentType: mimeType } });
-      storedPath = `${R2_IMAGE_PATH_PREFIX}${fallbackKey}`;
-    }
-
-    await env.R2_IMAGES.delete(rawKey).catch(() => {});
+    const storedPath = `${R2_IMAGE_PATH_PREFIX}${storedKey}`;
+    const finalBytes: Uint8Array = rawBytes;
+    const finalMime = mimeType;
 
     // Insert into images table
     const result = await env.DB.prepare(`
@@ -359,13 +334,6 @@ async function routeApiRequest(
       if (r2 === "trend") return await handlers.handleApiWeatherTrend(request, env);
     }
 
-    // ─── Drives region (sensorium inbound — spec §Sensorium 1) ───
-    // ops/manual surface, documented — Gate H (sensorium-client posts env payloads here)
-    if (r1 === "drives") {
-      if (r2 === "env" && request.method === "POST") {
-        return await handlers.handleApiDrivesEnv(request, env);
-      }
-    }
 
     // ─── Dreams region ───
     if (r1 === "dreams") {
@@ -404,50 +372,6 @@ export async function routeRequest(
     );
   }
 
-  // One-shot admin orphan delete: takes { keys: string[] } via POST body.
-  if (url.pathname === "/api/admin/r2-delete-keys" && env.R2_IMAGES && request.method === "POST") {
-    if (!isAuthorizedRequest(request, env)) return new Response("Unauthorized", { status: 401 });
-    const body = await request.json() as { keys?: string[] };
-    if (!body.keys || !Array.isArray(body.keys)) return new Response(JSON.stringify({ error: "keys[] required" }), { status: 400 });
-    const results: Array<{ key: string; deleted: boolean; error?: string }> = [];
-    for (const key of body.keys) {
-      try {
-        await env.R2_IMAGES.delete(key);
-        results.push({ key, deleted: true });
-      } catch (e) {
-        results.push({ key, deleted: false, error: String(e).slice(0, 100) });
-      }
-    }
-    return new Response(JSON.stringify({ results }, null, 2), { headers: { "Content-Type": "application/json" } });
-  }
-
-  // One-shot admin diff: R2 keys vs DB paths. Authenticated, read-only.
-  if (url.pathname === "/api/admin/image-diff" && env.R2_IMAGES) {
-    if (!isAuthorizedRequest(request, env)) return new Response("Unauthorized", { status: 401 });
-    const r2Listing = await env.R2_IMAGES.list({ limit: 1000 });
-    const r2Keys = r2Listing.objects.map(o => o.key).sort();
-    const dbRows = await env.DB.prepare(`SELECT id, path, description, created_at FROM images ORDER BY id`).all();
-    const dbPaths = new Set<string>();
-    const pending: Array<{ id: number; description: string }> = [];
-    for (const row of (dbRows.results || []) as any[]) {
-      const path = String(row.path);
-      if (path === "pending" || !path.startsWith(R2_IMAGE_PATH_PREFIX)) {
-        pending.push({ id: row.id, description: String(row.description).slice(0, 80) });
-      } else {
-        dbPaths.add(path.slice(R2_IMAGE_PATH_PREFIX.length));
-      }
-    }
-    const orphanR2 = r2Keys.filter(k => !dbPaths.has(k));
-    const missingR2 = [...dbPaths].filter(k => !r2Keys.includes(k));
-    return new Response(JSON.stringify({
-      counts: { r2: r2Keys.length, db_total: (dbRows.results || []).length, db_with_path: dbPaths.size, pending: pending.length, orphan_r2_keys: orphanR2.length, missing_r2_for_db: missingR2.length },
-      r2_keys: r2Keys,
-      pending_db_rows: pending,
-      orphan_r2_keys: orphanR2,
-      missing_r2_for_db_paths: missingR2,
-    }, null, 2), { headers: { "Content-Type": "application/json" } });
-  }
-
   // Image viewing: /img/{id} with signed URL (no API key exposed)
   // URL format: /img/{id}?expires={timestamp}&sig={hmac}
   if (url.pathname.startsWith("/img/") && env.R2_IMAGES) {
@@ -480,19 +404,6 @@ export async function routeRequest(
         "Content-Type": object.httpMetadata?.contentType || "image/webp",
         "Cache-Control": "private, max-age=3600",
       }
-    });
-  }
-
-  // Internal R2 serving (used by cf.image transform for WebP conversion)
-  if (url.pathname.startsWith("/r2/") && env.R2_IMAGES) {
-    const key = url.pathname.slice(4);
-    if (!isAuthorizedRequest(request, env)) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-    const object = await env.R2_IMAGES.get(key);
-    if (!object) return new Response("Not found", { status: 404 });
-    return new Response(object.body, {
-      headers: { "Content-Type": object.httpMetadata?.contentType || "image/png" }
     });
   }
 

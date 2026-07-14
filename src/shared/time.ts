@@ -12,10 +12,18 @@ export interface TimeContext {
   textures: string[];
 }
 
-export function getTimeOfDayContext(): TimeContext {
+export function getTimeOfDayContext(timeZone = "UTC"): TimeContext {
   const now = new Date();
-  const londonTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/London" }));
-  const hour = londonTime.getHours();
+  let hour: number;
+  try {
+    hour = Number(new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(now));
+  } catch {
+    hour = now.getUTCHours();
+  }
 
   if (hour >= 5 && hour < 10) {
     return { period: "morning", energy: "rising", textures: ["fresh", "possibility", "beginning"] };

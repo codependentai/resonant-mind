@@ -50,7 +50,7 @@ async function pickOrphansForOrient(
 }
 
 export async function handleMindOrient(env: Env): Promise<string> {
-  const timeCtx = getTimeOfDayContext();
+  const timeCtx = getTimeOfDayContext(env.LOCATION_TIMEZONE);
 
   // Run all independent fetches in parallel — orient was sequential and brittle
   const [

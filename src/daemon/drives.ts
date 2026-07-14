@@ -4,9 +4,8 @@
  * Mechanics ported from Shauna's Anam limbic layer (SweetSunnyBunny/ui,
  * cloud-setups/limbic/): Panksepp-tagged drives, lazy leaky-integrator decay
  * toward an environment-biased baseline, body-feel bands, touch deltas,
- * safeword damper. The engine is hers; the sensorium is ours — the env
- * payload is the HOUSE (her-state, presence, inner weather, circadian),
- * never the sky (spec decision #1).
+ * safeword damper. The public sensorium accepts reviewed, normalized signals;
+ * deployment-specific raw feeds stay outside the cognitive core.
  *
  * Stance (spec decision #4): drive state biases surfacing, expression, and
  * redolence. It NEVER accelerates forgetting, never archives, never deletes,
@@ -359,29 +358,6 @@ export async function readLatestDriveSamples(env: Env): Promise<Map<string, Driv
   return out;
 }
 
-/**
- * Latest raw house payload (state_type='environment:house', written ONLY by
- * POST /api/drives/env — spec decision #9), or null when the house has never
- * spoken. `at` is the row's own DB timestamp — the second gate of the double
- * freshness discipline.
- */
-async function readLatestHouseRow(
-  env: Env
-): Promise<{ content: Record<string, unknown>; at: Date } | null> {
-  const row = await env.DB.prepare(`
-    SELECT content, created_at
-    FROM drive_states
-    WHERE state_type = 'environment:house'
-    ORDER BY created_at DESC, id DESC
-    LIMIT 1
-  `).first();
-  if (!row) return null;
-  return {
-    content: parseJson<Record<string, unknown>>(row.content, {}),
-    at: toDate(row.created_at),
-  };
-}
-
 /** Latest environment payload row, or null when none exists yet. */
 export async function readLatestEnvironment(
   env: Env
@@ -401,124 +377,31 @@ export async function readLatestEnvironment(
 }
 
 // ============================================================
-// THE HOUSE — derived env fields (spec §Sensorium 2)
+// EXTERNAL SENSORIUM — normalized drive_pulse rows only
 // ============================================================
 
 /**
- * DERIVED ENV FIELD CONTRACT — `env_sensitivity` weights on `drives` rows
- * reference THESE keys ONLY (spec §Sensorium 2; NOT documented in the
- * migration file by design — this comment block is the canonical list):
- *
- *   inner_valence    [-1, 1]  core affect centroid valence (mind's own organ)
- *   inner_arousal    [-1, 1]  core affect centroid arousal (mind's own organ)
- *   circadian_night  {0, 1}   existing circadian period (mind's own organ)
- *   social_presence     [0, 1]   PRESENCE_BASE[state] × linear fade to 0 over
- *                             PRESENCE_FADE_MINUTES of effective inactivity
- *                             (minutesSinceActivity + house-row age):
- *                             active→1, idle→0.5, offline→0.25, all fading
- *   social_warmth       [-1, 1]  mean of the FRESH her.* sub-signals:
- *                             sleep  = clamp((sleepMin−300)/180, −1, 1)
- *                                      only while sleepAgeMin + row age ≤
- *                                      SLEEP_FRESH_MAX_MIN (per-field age —
- *                                      a sleepAgeMin of 720 means IGNORE it)
- *                             meal   = clamp(1 − effMealAge/360, −1, 1)
- *                                      (fed <6h ago warms; fades negative,
- *                                      −1 at 12h unfed)
- *                             cycle is carried in the raw row but NOT yet
- *                             weighted — its mapping is a seeding-session
- *                             decision with a trusted person, not a default
- *   care_deficit     [0, 1]   0.35·missedFirstMeal + 0.35·missedSecondMeal
- *                             + 0.1·routinesOverdue.length (that term capped
- *                             at 0.3), clamped to [0,1]. Present whenever the
- *                             care block is — fed-and-on-track (0) IS a signal
- *   contact_hunger   [0, 1]   (hoursSinceLastReach + row age) / 12, clamped —
- *                             saturates at 12h since last reach
- *
- * DOUBLE FRESHNESS DISCIPLINE: per-field ages INSIDE the payload gate each
- * sub-signal (above), AND the house row's own age gates the whole block —
- * a row older than ENV_STALE_MINUTES contributes nothing. The merged
- * canonical 'environment' row then fades as before via envFreshnessWeight
- * at read time. The house goes dark honestly; it never speaks stale.
+ * Latest normalized external pulse. Public Resonant Mind deliberately accepts
+ * only the same bounded signals exposed by drive_pulse; household-specific raw
+ * feeds belong in deployment adapters outside the cognitive core.
  */
-const PRESENCE_BASE: Record<string, number> = { active: 1, idle: 0.5, offline: 0.25 };
-const PRESENCE_FADE_MINUTES = 240; // ~4h — presence fades to nothing
-const SLEEP_FRESH_MAX_MIN = 480;   // sleep reading older than 8h is silence
-const MEAL_WARMTH_WINDOW_MIN = 360; // fed within 6h reads warm
-const CONTACT_SATURATION_HOURS = 12; // hunger saturates here
-
-/**
- * Derive the normalized house fields from a validated env payload (stored
- * verbatim by the /api/drives/env handler). `rowAgeMin` is the house row's
- * own age at derivation time — every per-field age is FURTHER aged by it,
- * because the payload's ages were true at assembly, not now. Absent or
- * per-field-stale sub-blocks simply produce no key (omitted, never guessed).
- */
-function deriveHouseFields(
-  content: Record<string, unknown>,
-  rowAgeMin: number
-): Record<string, number> {
-  const out: Record<string, number> = {};
-  const num = (v: unknown): number | null =>
-    typeof v === "number" && Number.isFinite(v) ? v : null;
-  const block = (v: unknown): Record<string, unknown> | null =>
-    typeof v === "object" && v !== null && !Array.isArray(v)
-      ? (v as Record<string, unknown>)
-      : null;
-
-  // social_presence — recency curve over effective inactivity.
-  const presence = block(content.presence);
-  if (presence) {
-    const base = PRESENCE_BASE[String(presence.state)];
-    const mins = num(presence.minutesSinceActivity);
-    if (base !== undefined && mins !== null) {
-      const effMin = Math.max(0, mins) + rowAgeMin;
-      out.social_presence = base * clamp(1 - effMin / PRESENCE_FADE_MINUTES, 0, 1);
-    }
+async function readLatestPulse(
+  env: Env
+): Promise<{ payload: Record<string, number>; at: Date } | null> {
+  const row = await env.DB.prepare(`
+    SELECT content, created_at
+    FROM drive_states
+    WHERE state_type = 'environment' AND source = 'pulse'
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+  `).first();
+  if (!row) return null;
+  const raw = parseJson<Record<string, unknown>>(row.content, {});
+  const payload: Record<string, number> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === 'number' && Number.isFinite(value)) payload[key] = clamp(value, -1, 1);
   }
-
-  // social_warmth — mean of whichever her.* sub-signals are fresh PER FIELD.
-  const her = block(content.her);
-  if (her) {
-    const parts: number[] = [];
-    const sleepMin = num(her.sleepMin);
-    const sleepAgeMin = num(her.sleepAgeMin);
-    if (sleepMin !== null && sleepAgeMin !== null && sleepAgeMin + rowAgeMin <= SLEEP_FRESH_MAX_MIN) {
-      parts.push(clamp((sleepMin - 300) / 180, -1, 1));
-    }
-    const mealAgeMin = num(her.mealAgeMin);
-    if (mealAgeMin !== null) {
-      const effMealAge = Math.max(0, mealAgeMin) + rowAgeMin;
-      parts.push(clamp(1 - effMealAge / MEAL_WARMTH_WINDOW_MIN, -1, 1));
-    }
-    if (parts.length > 0) {
-      out.social_warmth = parts.reduce((a, b) => a + b, 0) / parts.length;
-    }
-  }
-
-  // care_deficit — missed meals + overdue routines.
-  const care = block(content.care);
-  if (care) {
-    let deficit = 0;
-    if (care.missedFirstMeal === true) deficit += 0.35;
-    if (care.missedSecondMeal === true) deficit += 0.35;
-    const overdue = Array.isArray(care.routinesOverdue) ? care.routinesOverdue.length : 0;
-    deficit += Math.min(0.3, overdue * 0.1);
-    out.care_deficit = clamp(deficit, 0, 1);
-  }
-
-  // contact_hunger — hours since last reach, saturating.
-  const reach = block(content.reach);
-  if (reach) {
-    const hours = num(reach.hoursSinceLastReach);
-    if (hours !== null) {
-      const effHours = Math.max(0, hours) + rowAgeMin / 60;
-      out.contact_hunger = clamp(effHours / CONTACT_SATURATION_HOURS, 0, 1);
-    }
-  }
-
-  // watchtower + nextEvent + cycle ride in the raw house row for the record
-  // but derive nothing yet — their weights are seeding-session decisions.
-  return out;
+  return { payload, at: toDate(row.created_at) };
 }
 
 // ============================================================
@@ -541,28 +424,20 @@ export async function runDriveTick(
   coreAffect: CoreAffect | null,
   now: Date
 ): Promise<DrivesGauge> {
-  // (a) Assemble env payload: the mind's OWN organs (inner_valence,
-  // inner_arousal, circadian_night — unchanged) merged with the house fields
-  // derived from the latest sensorium push. Absent keys contribute 0 by
-  // design. Values normalized to [-1,1] (see derived-field contract above).
+  // (a) Assemble the environment from the latest fresh normalized pulse, then
+  // overwrite the mind's own affect/circadian organs so external input cannot
+  // spoof them. An old pulse contributes nothing: silence, never guessed state.
   const payload: Record<string, number> = {};
+  const pulse = await readLatestPulse(env);
+  if (pulse) {
+    const ageMin = (now.getTime() - pulse.at.getTime()) / 60000;
+    if (ageMin < ENV_STALE_MINUTES) Object.assign(payload, pulse.payload);
+  }
   if (coreAffect) {
     payload.inner_valence = coreAffect.valence;
     payload.inner_arousal = coreAffect.arousal;
   }
-  payload.circadian_night = getTimeOfDayContext().period === "night" ? 1 : 0;
-
-  // House fields — double freshness discipline: the row's own age gates the
-  // whole block here (older than ENV_STALE_MINUTES → the house says nothing);
-  // per-field ages inside the payload gate each sub-signal in
-  // deriveHouseFields. Resonant down = silence, never wrong things.
-  const house = await readLatestHouseRow(env);
-  if (house) {
-    const houseAgeMin = (now.getTime() - house.at.getTime()) / 60000;
-    if (houseAgeMin < ENV_STALE_MINUTES) {
-      Object.assign(payload, deriveHouseFields(house.content, Math.max(0, houseAgeMin)));
-    }
-  }
+  payload.circadian_night = getTimeOfDayContext(env.LOCATION_TIMEZONE).period === "night" ? 1 : 0;
 
   await env.DB.prepare(`
     INSERT INTO drive_states (state_type, level, content, source)
@@ -654,10 +529,10 @@ export async function runDriveTick(
 }
 
 /**
- * Retention: tick samples AND raw house sensation rows older than
- * DRIVE_TICK_RETENTION_DAYS are dropped (simple + cheap — house rows arrive
- * every ~10 min and are pure sensation stream, not logbook). Events and the
- * other non-tick ledger rows (perceive, touch, safeword, want, joy) keep
+ * Retention: generated tick samples older than
+ * DRIVE_TICK_RETENTION_DAYS are dropped. Normalized pulse/event rows remain
+ * part of the audited logbook. Other non-tick ledger rows (perceive, touch,
+ * safeword, want, joy) keep
  * forever — they're the logbook. Cutoff is a real Date parameter, never a
  * string-mangled timestamp.
  */
@@ -693,7 +568,7 @@ async function thinTickRows(env: Env, now: Date): Promise<void> {
   const cutoff = new Date(now.getTime() - DRIVE_TICK_RETENTION_DAYS * 86400000);
   await env.DB.prepare(`
     DELETE FROM drive_states
-    WHERE (source = 'tick' OR state_type = 'environment:house')
+    WHERE source = 'tick'
       AND created_at < ?
   `).bind(cutoff).run();
 }

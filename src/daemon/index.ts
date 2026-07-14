@@ -132,7 +132,7 @@ export async function processSubconscious(env: Env): Promise<void> {
   // sleep functions. Deep archive/retention run only at night; consolidation
   // runs full (affect-modulated) at night, light (1 entity) during the day.
   // Days stay responsive; nights digest — same clock the dream engine keeps.
-  const isNight = getTimeOfDayContext().period === 'night';
+  const isNight = getTimeOfDayContext(env.LOCATION_TIMEZONE).period === 'night';
 
   try {
     const proposalsResult = await runProposals(env);

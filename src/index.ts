@@ -38,7 +38,6 @@ import { handleApiWeatherTrend } from "./http/handlers/weather-trend";
 import { handleApiLivingSurface } from "./http/handlers/living-surface";
 import { handleApiDreamLast } from "./http/handlers/dream-last";
 import { handleApiTelemetry } from "./http/handlers/telemetry";
-import { handleApiDrivesEnv } from "./http/handlers/drives-env";
 import { handleApiDreamComposeTest } from "./http/handlers/dream-compose-test";
 import type { Env } from "./types";
 
@@ -94,7 +93,6 @@ export default {
       handleApiLivingSurface,
       handleApiDreamLast,
       handleApiTelemetry,
-      handleApiDrivesEnv,
       handleApiDreamComposeTest,
       handleMCPRequest,
     });

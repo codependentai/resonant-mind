@@ -81,36 +81,15 @@ export async function handleMindStoreImage(env: Env, params: Record<string, unkn
       .replace(/[^a-zA-Z0-9_-]/g, "_")
       .replace(/_+/g, "_")
       .slice(0, 60);
-    const rawKey = `_tmp_${date}_${safeName}`;
-    const webpKey = `${date}_${safeName}.webp`;
+    const ext = mimeType === "image/jpeg" ? ".jpg"
+      : mimeType === "image/webp" ? ".webp"
+      : mimeType === "image/gif" ? ".gif"
+      : ".png";
+    const storedKey = `${date}_${safeName}${ext}`;
+    await env.R2_IMAGES.put(storedKey, rawBinary, { httpMetadata: { contentType: mimeType } });
 
-    await env.R2_IMAGES.put(rawKey, rawBinary, { httpMetadata: { contentType: mimeType } });
-
-    let storedPath: string;
-    let storedMime: string;
-    try {
-      if (!env.WORKER_URL) throw new Error("WORKER_URL is required for image conversion");
-      const r2Url = `${env.WORKER_URL.replace(/\/$/, "")}/r2/${rawKey}`;
-      const webpResponse = await fetch(r2Url, {
-        cf: { image: { format: "webp", quality: 80, fit: "scale-down", width: 1920, height: 1920 } },
-      });
-      if (webpResponse.ok) {
-        const webpBuffer = await webpResponse.arrayBuffer();
-        await env.R2_IMAGES.put(webpKey, webpBuffer, { httpMetadata: { contentType: "image/webp" } });
-        storedPath = `${R2_IMAGE_PATH_PREFIX}${webpKey}`;
-        storedMime = "image/webp";
-      } else {
-        // cf.image unavailable — keep original
-        const ext = mimeType === "image/jpeg" ? ".jpg" : ".png";
-        const fallbackKey = `${date}_${safeName}${ext}`;
-        await env.R2_IMAGES.put(fallbackKey, rawBinary, { httpMetadata: { contentType: mimeType } });
-        storedPath = `${R2_IMAGE_PATH_PREFIX}${fallbackKey}`;
-        storedMime = mimeType;
-      }
-    } finally {
-      // Always clean temp, even if WebP conversion threw mid-flight
-      await env.R2_IMAGES.delete(rawKey).catch(() => {});
-    }
+    const storedPath = `${R2_IMAGE_PATH_PREFIX}${storedKey}`;
+    const storedMime = mimeType;
 
     // --- Multimodal embedding. Gemini accepts PNG, JPEG, WebP, HEIC, HEIF. ---
     const contextText = [

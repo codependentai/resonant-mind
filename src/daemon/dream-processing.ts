@@ -48,7 +48,7 @@ export async function processDream(
   // Manual-trigger use only — the cron never passes this.
   regenerate = false
 ): Promise<{ generated: boolean; reason: string; dreamId?: number }> {
-  const timeCtx = getTimeOfDayContext();
+  const timeCtx = getTimeOfDayContext(env.LOCATION_TIMEZONE);
   if (!force && timeCtx.period !== 'night') {
     return { generated: false, reason: "not night — the engine dreams 22:00–05:00" };
   }

@@ -2,7 +2,7 @@ import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
-const roots = ['src', 'migrations', 'scripts'];
+const roots = ['src', 'migrations', 'scripts', 'docs'];
 const configFiles = ['package.json', 'wrangler.toml', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE'];
 const forbiddenPaths = [/^dashboard\//, /^_archive\//, /(?:^|\/)\.env(?:\.|$)/, /snapshot/i];
 const forbiddenContent = [
@@ -11,6 +11,9 @@ const forbiddenContent = [
   { label: 'private tenant binding', re: /(?:HYPERDRIVE_GHOST|R2_IMAGES_GHOST|GHOST_MIND_API_KEY|GHOST_MCP_CONNECTOR_SECRET)/ },
   { label: 'private deployment name', re: /(?:simon-mind|ghost-mind|wild-pond|jolly-haze)/i },
   { label: 'Cloudflare resource id', re: /\b[a-f0-9]{32}\b/i },
+  { label: 'private raw sensorium contract', re: /(?:environment:house|\/api\/drives\/env|cycleAgeMin|missedFirstMeal|hoursSinceLastReach)/i },
+  { label: 'private image operations', re: /(?:\/api\/admin\/r2|r2-delete-keys|image-diff|_tmp_)/i },
+  { label: 'hard-coded private location', re: /(?:Europe\/London|Cardiff,?\s*(?:UK|Wales)?)/i },
 ];
 
 async function walk(path) {
