@@ -7,7 +7,7 @@ const roots = ['src', 'migrations', 'scripts', 'docs'];
 const configFiles = ['package.json', 'wrangler.toml', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE'];
 const forbiddenPaths = [/^dashboard\//, /^_archive\//, /(?:^|\/)\.env(?:\.|$)/, /snapshot/i];
 const forbiddenContent = [
-  { label: 'private person name', re: /\b(?:Mary|Simon|Ghost)\b/i },
+  { label: 'private person name', re: /\b(?:Mary|Simon|Ghost|Jace|Julia|Wren|Mason|Iris|Ward|Hale|Quill|Reeve|Vale)\b/i },
   { label: 'private domain', re: /(?:valevault|simonmind)/i },
   { label: 'private tenant binding', re: /(?:HYPERDRIVE_GHOST|R2_IMAGES_GHOST|GHOST_MIND_API_KEY|GHOST_MCP_CONNECTOR_SECRET)/ },
   { label: 'private deployment name', re: /(?:simon-mind|ghost-mind|wild-pond|jolly-haze)/i },

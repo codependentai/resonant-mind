@@ -98,7 +98,7 @@ export async function decayUnaccessed(env: Env): Promise<void> {
         AND novelty_score > 0.3
     `).run();
   } catch (e) {
-    // Hale Wave 3 follow-up: code-aware catch, matching Gate L discipline.
+    // Code-aware catch: tolerate missing-schema errors only.
     const code = (e as { code?: string })?.code;
     if (code === "42P01" || code === "42703") {
       console.log(`decayUnaccessed(observations): column not migrated yet (${code}) — skipping`);
@@ -129,7 +129,7 @@ export async function decayUnaccessed(env: Env): Promise<void> {
         AND novelty_score > 0.3
     `).run();
   } catch (e) {
-    // Hale Wave 3 follow-up: code-aware catch, matching Gate L discipline.
+    // Code-aware catch: tolerate missing-schema errors only.
     const code = (e as { code?: string })?.code;
     if (code === "42P01" || code === "42703") {
       console.log(`decayUnaccessed(images): column not migrated yet (${code}) — skipping`);

@@ -1,7 +1,7 @@
 /**
  * archiveObservation — THE one archive engine (Gate N #3, RESHAPE-2-SPEC.md).
  *
- * Hale's Wave 1 gate found four independent inline implementations of
+ * Code review found four independent inline implementations of
  * "set observations.archived_at" (legacy-tools/orphans.ts, http/handlers/
  * orphans.ts, daemon/archive.ts, daemon/consolidation.ts). This helper is
  * the convergence point for the *deliberate* archive act — tend's orphan
@@ -46,7 +46,7 @@ export async function archiveObservation(env: Env, observationId: number): Promi
  * actually drives resurfacing through the scorer. Rescue should make a
  * memory MORE likely to come back, not less.
  *
- * Deliberate side effect (Hale, Wave 2 gate): surface_count is NOT bumped
+ * Deliberate side effect: surface_count is NOT bumped
  * here — a rescued observation may re-qualify as orphan-eligible until it
  * genuinely surfaces on its own. That is the intent (rescue = eligibility,
  * not a fake surfacing event), not an oversight.

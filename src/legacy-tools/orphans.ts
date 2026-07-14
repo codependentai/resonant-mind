@@ -8,7 +8,7 @@
  * tend's `rescue` action (rescued from dead-code status — dead-code-report.md
  * §3 confirmed it was unreachable from any MCP path), 'archive' is tend's
  * `archive` action (delegates to the shared archiveObservation engine,
- * Gate N #3). The old 'list' case was deleted at the Wave 1 Hale gate —
+ * review). The old 'list' case was deleted after review —
  * tend's list section (legacy-tools/proposals.ts) renders the orphan queue
  * itself. `dream_surface{kind:'orphans'}` / `dream_discard{observation_id}`
  * redirect to ritual_tend instead of calling this handler directly.
@@ -74,7 +74,7 @@ export async function handleMindOrphans(env: Env, params: Record<string, unknown
 
       // Gate N #3 (RESHAPE-2-SPEC.md): ONE archive engine — shared with the
       // HTTP admin endpoint via shared/archive-observation.ts. Built at the
-      // Wave 1 Hale gate after the review found four divergent inline
+      // Consolidated after review found four divergent inline
       // implementations of this exact act.
       await archiveObservation(env, observationId);
 

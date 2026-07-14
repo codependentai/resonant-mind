@@ -458,7 +458,7 @@ export async function runDriveTick(
     // Still thin old tick rows (env rows accumulate even with zero drives).
     await thinTickRows(env, now);
     // A quiet want logged before any drive seeds must still show in the gauge —
-    // the same open-wants surface the populated branch has (Hale F2). Absent
+    // the same open-wants surface the populated branch has. Absent
     // it, appetite logged pre-seed would vanish from orient.
     const emptyWants = await readOpenWantsForGauge(env);
     // Honest, not absent (spec workflow gate 3 verifies this exact text).

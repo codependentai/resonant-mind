@@ -14,7 +14,7 @@ export async function handleApiProcess(env: Env): Promise<Response> {
 }
 
 /**
- * Manual dream trigger. Honest about what happened (Hale finding, 2026-07-11):
+ * Manual dream trigger. Honest about what happened (review finding):
  * the old handler returned "the most recent dream ever" with status:ok even
  * when the date-gate meant nothing was generated. Now the outcome is explicit,
  * and ?regen=1 deliberately re-dreams tonight (deletes today's row + vector).

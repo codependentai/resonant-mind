@@ -87,7 +87,7 @@ export function createVectorAdapter(connectionString: string) {
       }
     },
 
-    // Hale Wave 4 gate (LOW-2): this method was MISSING while three call
+    // Review finding: this method was MISSING while three call
     // sites (dream-processing regen, legacy-tools/delete image branch,
     // store-image delete) called it inside swallowed try/catch — image and
     // dream embedding cleanup silently no-op'd since the pgvector migration.

@@ -7,7 +7,7 @@ export async function handleApiThreads(request: Request, env: Env, pathParts: st
   const threadId = pathParts[2] ? parseInt(pathParts[2]) : null;
   const action = pathParts[3];
 
-  // Bare GET (list) was removed at the Wave 4 Hale gate: the route was
+  // Bare GET (list) was removed after review: the route was
   // pruned by Gate H (superseded by /api/active/open), and the dead branch
   // here interpolated the status query param straight into SQL — an
   // injection-shaped surface we don't leave lying around even unreachable.

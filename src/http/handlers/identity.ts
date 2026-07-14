@@ -54,7 +54,7 @@ export async function handleApiIdentity(request: Request, env: Env, pathParts: s
     return jsonResponse({ section, ...body });
   }
 
-  // DELETE /api/identity/:section — SOFT archive (Gate B + Hale Wave 2 gate).
+  // DELETE /api/identity/:section — SOFT archive (soft-delete by design).
   // Was a raw hard DELETE — the exact second-door landmine collision-audit.md
   // Part 0 warned about, coexisting with spine_amend{remove}'s soft archive on
   // the same table. Identity rows are identity: they fade, they don't vanish.

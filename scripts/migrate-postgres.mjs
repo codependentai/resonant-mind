@@ -14,7 +14,10 @@ if (!connectionString) {
 const here = dirname(fileURLToPath(import.meta.url));
 const migrationDir = join(here, '..', 'migrations', 'postgres');
 const files = (await readdir(migrationDir)).filter((name) => name.endsWith('.sql')).sort();
-const client = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
+// TLS certificate verification is ON by default; set PG_SSL_NO_VERIFY=1 only
+// for local/self-signed development databases.
+const ssl = process.env.PG_SSL_NO_VERIFY === '1' ? { rejectUnauthorized: false } : { rejectUnauthorized: true };
+const client = new Client({ connectionString, ssl });
 const lockId = 741927401;
 
 try {

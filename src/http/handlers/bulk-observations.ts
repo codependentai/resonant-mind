@@ -13,7 +13,7 @@ export async function handleApiBulkObservations(request: Request, env: Env): Pro
 
   switch (action) {
     case "delete":
-      // Hale Wave 4 gate: was a fourth incomplete inline cleanup (sits + row
+      // Was a fourth incomplete inline cleanup (sits + row
       // only — stale embeddings kept surfacing in mind_search forever).
       // Converged to the one surgery engine (audit D-3, Gate N one-engine rule).
       for (const id of ids) {
