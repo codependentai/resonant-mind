@@ -3,19 +3,19 @@ export interface Env {
   HYPERDRIVE: Hyperdrive;
   VECTORS: VectorizeIndex;
   R2_IMAGES: R2Bucket;
+  /** Workers AI — dream-work composition (one call/night). Structurally typed
+   * to avoid pinning @cloudflare/workers-types' Ai interface version. */
+  AI: { run(model: string, options: Record<string, unknown>): Promise<unknown> };
   GEMINI_API_KEY: string;
   MIND_API_KEY: string;
   SIGNING_SECRET?: string;
+  WORKER_URL?: string;
   MCP_CONNECTOR_SECRET?: string;
   WEATHER_API_KEY?: string;
+  LOCATION_NAME?: string;
+  LOCATION_TIMEZONE?: string;
   DASHBOARD_ALLOWED_ORIGIN?: string;
   INTERNAL_KEY?: string;
-  WORKER_URL?: string;
-  R2_PATH_PREFIX?: string;
-  LOCATION_NAME?: string;
-  LOCATION_LAT?: string;
-  LOCATION_LON?: string;
-  LOCATION_TZ?: string;
 }
 
 export interface MCPRequest {
