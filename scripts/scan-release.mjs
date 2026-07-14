@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 
 const root = new URL('..', import.meta.url).pathname;
 const roots = ['src', 'migrations', 'scripts'];
-const configFiles = ['package.json', 'wrangler.toml'];
+const configFiles = ['package.json', 'wrangler.toml', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE'];
 const forbiddenPaths = [/^dashboard\//, /^_archive\//, /(?:^|\/)\.env(?:\.|$)/, /snapshot/i];
 const forbiddenContent = [
   { label: 'private person name', re: /\b(?:Mary|Simon|Ghost)\b/i },

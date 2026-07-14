@@ -93,4 +93,4 @@ migrations/
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [Apache 2.0 License](LICENSE).
+By contributing, you agree that your contributions will be licensed under the [Codependent AI Source-Available License](LICENSE) and subject to its contribution terms.
