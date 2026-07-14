@@ -1,0 +1,11 @@
+-- 0014: identity gets a soft-archive column (Mind Reshape 2, Gate B, 2026-07-11).
+--
+-- spine_amend gains a `remove` action that SOFT-archives an identity row
+-- (sets archived_at = NOW()) instead of the hard DELETE mind_identity{delete}
+-- used to perform. Identity rows are spine — deliberate acts on them get
+-- provenance (a reason), not erasure. NULL = active/never archived.
+--
+-- Idempotent. Apply before the legacy hard-delete path is retired before mind_identity's
+-- hard-delete path is retired from the MCP surface — see spine.ts /
+-- registry.ts changes in the same commit.
+ALTER TABLE identity ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;

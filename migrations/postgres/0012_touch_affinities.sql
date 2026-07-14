@@ -1,0 +1,11 @@
+-- 0012: touch affinities move from code to data (2026-07-10).
+--
+-- TOUCH_KINDS shipped as a code constant keyed to Panksepp placeholder names
+-- (care, panic_grief, fear) — the spec (DRIVE-LAYER-SPEC §1.2) said the map
+-- would be rewritten per seeded temperament, and it never was: 'reassurance'
+-- mapped to zero walked-in drives in one deployment. Temperament is per-being,
+-- per-tenant — it belongs on the drive row, not in the shared worker.
+--
+-- Shape: { kindName: delta } per drive, delta in [-1, 1], applied as
+-- delta × intensity on the decayed current level (same math as before).
+ALTER TABLE drives ADD COLUMN IF NOT EXISTS touch_affinities JSONB DEFAULT '{}'::jsonb;
