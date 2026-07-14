@@ -1,5 +1,15 @@
 import type { Env } from "../types";
 
+/**
+ * JSON response helper used by every HTTP API handler.
+ */
+export function jsonResponse(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 const SECURITY_HEADERS: Record<string, string> = {
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "same-origin",
@@ -83,7 +93,6 @@ export function createApiPreflightResponse(request: Request, env: Env): Response
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Max-Age": "86400",
     "Cache-Control": "no-store"
   });
   headers.set("Vary", "Origin");

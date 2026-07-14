@@ -1,43 +1,39 @@
 name = "resonant-mind"
 main = "src/index.ts"
-compatibility_date = "2024-12-18"
+compatibility_date = "2026-07-14"
 compatibility_flags = ["nodejs_compat"]
-
 workers_dev = true
 
-# Uncomment and configure for custom domain:
-# [[routes]]
-# pattern = "your-domain.example.com"
-# custom_domain = true
-
-# Uncomment for Postgres via Hyperdrive (alternative to D1):
+# REQUIRED: create a Cloudflare Hyperdrive configuration backed by Neon,
+# then uncomment this block and insert its non-secret binding ID.
 # [[hyperdrive]]
 # binding = "HYPERDRIVE"
 # id = "your-hyperdrive-id"
 
-# R2 for image storage
+# Visual memory storage. Change the bucket name for your deployment.
 [[r2_buckets]]
 binding = "R2_IMAGES"
 bucket_name = "resonant-mind-images"
 
-# Static assets for dashboard (uncomment when dashboard is ready)
-# [assets]
-# directory = "./dashboard"
+# Workers AI composes the manifest layer of dreams.
+[ai]
+binding = "AI"
 
-# Cron triggers for subconscious daemon processing
+# Subconscious metabolism.
 [triggers]
 crons = ["*/30 * * * *"]
 
-# Environment variables (set via wrangler secret or dashboard):
-# MIND_API_KEY        - Required. API key for authentication
-# GEMINI_API_KEY      - Required. Google Gemini API key for embeddings
-# SIGNING_SECRET      - Optional. Separate secret for signed URLs (defaults to MIND_API_KEY)
-# MCP_CONNECTOR_SECRET - Optional. Secret path for MCP connector auth
-# WEATHER_API_KEY     - Optional. WeatherAPI.com key for inner weather
-# DASHBOARD_ALLOWED_ORIGIN - Optional. CORS origin for dashboard
-# WORKER_URL          - Optional. Public URL of this worker (for signed image URLs)
-# R2_PATH_PREFIX      - Optional. R2 key prefix (default: "resonant-mind-images")
-# LOCATION_NAME       - Optional. Location name (e.g., "London, UK")
-# LOCATION_LAT        - Optional. Latitude
-# LOCATION_LON        - Optional. Longitude
-# LOCATION_TZ         - Optional. Timezone (e.g., "Europe/London")
+# Required secrets (set with `wrangler secret put`):
+# MIND_API_KEY
+# GEMINI_API_KEY
+#
+# Optional secrets:
+# SIGNING_SECRET          - dedicated HMAC key for signed image URLs
+# MCP_CONNECTOR_SECRET    - compatibility connector path secret
+# WEATHER_API_KEY         - WeatherAPI.com key
+#
+# Optional variables:
+# WORKER_URL              - public worker origin, required for signed images
+# LOCATION_NAME           - WeatherAPI-compatible location query
+# LOCATION_TIMEZONE       - IANA timezone for deployment-specific scheduling
+# DASHBOARD_ALLOWED_ORIGIN - explicit CORS origin for a future separate client

@@ -87,6 +87,21 @@ export function createVectorAdapter(connectionString: string) {
       }
     },
 
+    // Review finding: this method was MISSING while three call
+    // sites (dream-processing regen, legacy-tools/delete image branch,
+    // store-image delete) called it inside swallowed try/catch — image and
+    // dream embedding cleanup silently no-op'd since the pgvector migration.
+    async deleteByIds(ids: string[]): Promise<void> {
+      if (!ids.length) return;
+      const client = new Client({ connectionString });
+      await client.connect();
+      try {
+        await client.query(`DELETE FROM embeddings WHERE id = ANY($1)`, [ids]);
+      } finally {
+        await client.end();
+      }
+    },
+
     async query(
       embedding: number[],
       options: { topK: number; returnMetadata?: string }

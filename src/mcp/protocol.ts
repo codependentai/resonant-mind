@@ -69,11 +69,10 @@ export async function handleMcpProtocolRequest(
       headers: { "Content-Type": "application/json" }
     });
   } catch (error) {
-    console.error("MCP tool error:", error);
     const response: MCPResponse = {
       jsonrpc: "2.0",
       id,
-      error: { code: -32603, message: "Internal tool error" }
+      error: { code: -32603, message: String(error) }
     };
     return new Response(JSON.stringify(response), {
       headers: { "Content-Type": "application/json" }

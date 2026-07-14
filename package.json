@@ -1,23 +1,35 @@
 {
   "name": "resonant-mind",
-  "version": "3.2.0",
-  "description": "Persistent memory MCP server for AI systems — semantic memory, emotional processing, identity continuity",
+  "version": "4.0.0",
+  "private": true,
+  "description": "A Postgres-backed cognitive substrate for persistent AI memory, identity, dreams, drives, and relational continuity",
   "license": "SEE LICENSE IN LICENSE",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "db:migrate": "wrangler d1 migrations apply resonant-mind --local",
-    "db:migrate:prod": "wrangler d1 migrations apply resonant-mind --remote",
-    "typecheck": "tsc --noEmit"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241218.0",
-    "@types/pg": "^8.20.0",
-    "typescript": "^5.3.3",
-    "wrangler": "^4.54.0"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:registry": "vitest run tests/registry.test.ts",
+    "scan:release": "node scripts/scan-release.mjs",
+    "db:migrate": "node scripts/migrate-postgres.mjs",
+    "verify": "npm run typecheck && npm test && npm run scan:release && npm audit --omit=dev --audit-level=moderate"
   },
   "dependencies": {
-    "@google/genai": "^1.46.0",
-    "pg": "^8.20.0"
+    "@google/genai": "2.11.0",
+    "pg": "8.20.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260714.1",
+    "@types/pg": "8.20.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7",
+    "wrangler": "4.110.0"
+  },
+  "overrides": {
+    "protobufjs": "7.6.5",
+    "@protobufjs/utf8": "1.1.2"
   }
 }

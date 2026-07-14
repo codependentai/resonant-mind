@@ -7,7 +7,28 @@ import {
 import { createApiPreflightResponse, withSecurityHeaders } from "./response";
 import { getEmbedding as getGeminiEmbedding, getImageEmbedding } from "../embeddings";
 import type { Env } from "../types";
+import { R2_IMAGE_PATH_PREFIX } from "../shared/constants";
 
+/**
+ * The `/api/*` surface is two-tier (pruned Gate H, Mind Reshape 2 Wave 4):
+ *
+ * 1. Dashboard-consumed — routes the Observatory actually fetches:
+ *    /telemetry, /bonds(/:name), /compass, /episodes/recent, /images,
+ *    /active/open, /weather(/trend), /dreams/proposals, /dreams/living-surface,
+ *    /spine, plus /active/threads' non-list verbs (GET-by-id, POST, PUT, DELETE).
+ * 2. Ops/manual surface — no dashboard consumer, kept deliberately as hands
+ *    when MCP is down, curl/external workflows, or future Observatory drill-ins.
+ *    Marked inline below with "ops/manual surface, documented — Gate H".
+ *
+ * Routes with neither dashboard nor manual justification were deleted in
+ * Gate H: /health-scores, /stats, /heat (superseded by /telemetry),
+ * /dreams/surface (superseded by /dreams/living-surface), /dreams/patterns,
+ * /ritual/orient|ground (MCP calls the handler functions directly, never HTTP),
+ * /episodes/journals, /active/tensions (MCP's active_tense already owns full
+ * tension CRUD; this HTTP copy had zero consumers), and /active/threads' bare
+ * GET-list (superseded by /active/open — its other verbs survive, see above).
+ * See docs/reshape-2/RESHAPE-2-SPEC.md Gate H + dead-code-report.md §5.
+ */
 interface AppRouteHandlers {
   processSubconscious(env: Env): Promise<void>;
   handleApiEntities(
@@ -20,18 +41,12 @@ interface AppRouteHandlers {
     env: Env,
     pathParts: string[]
   ): Promise<Response>;
-  handleApiJournals(
-    request: Request,
-    env: Env,
-    pathParts: string[]
-  ): Promise<Response>;
   handleApiThreads(
     request: Request,
     env: Env,
     pathParts: string[]
   ): Promise<Response>;
   handleApiSearch(request: Request, env: Env): Promise<Response>;
-  handleApiSurface(request: Request, env: Env): Promise<Response>;
   handleApiIdentity(
     request: Request,
     env: Env,
@@ -54,31 +69,16 @@ interface AppRouteHandlers {
   ): Promise<Response>;
   handleApiBulkObservations(request: Request, env: Env): Promise<Response>;
   handleApiProcess(env: Env): Promise<Response>;
-  handleApiOrient(env: Env): Promise<Response>;
-  handleApiGround(env: Env): Promise<Response>;
+  handleApiDream(request: Request, env: Env): Promise<Response>;
   handleApiHealth(env: Env): Promise<Response>;
-  handleApiHealthScores(env: Env): Promise<Response>;
-  handleApiStats(env: Env): Promise<Response>;
-  handleApiHeat(env: Env): Promise<Response>;
   handleApiRecent(env: Env): Promise<Response>;
   handleApiInnerWeather(env: Env): Promise<Response>;
-  handleApiPatterns(env: Env): Promise<Response>;
-  handleApiTensions(
-    request: Request,
-    env: Env,
-    pathParts: string[]
-  ): Promise<Response>;
   handleApiProposals(
     request: Request,
     env: Env,
     pathParts: string[]
   ): Promise<Response>;
-  handleApiDormant(
-    request: Request,
-    env: Env,
-    pathParts: string[]
-  ): Promise<Response>;
-  handleApiIsolated(
+  handleApiOrphans(
     request: Request,
     env: Env,
     pathParts: string[]
@@ -93,33 +93,37 @@ interface AppRouteHandlers {
     env: Env,
     obsId: number
   ): Promise<Response>;
+  // Region-namespaced additions
+  handleApiCompass(request: Request, env: Env): Promise<Response>;
+  handleApiBonds(
+    request: Request,
+    env: Env,
+    pathParts: string[]
+  ): Promise<Response>;
+  handleApiActiveOpen(request: Request, env: Env): Promise<Response>;
+  handleApiWeatherTrend(request: Request, env: Env): Promise<Response>;
+  handleApiLivingSurface(request: Request, env: Env): Promise<Response>;
+  handleApiDreamLast(request: Request, env: Env): Promise<Response>;
+  handleApiDreamComposeTest(request: Request, env: Env): Promise<Response>;
+  handleApiTelemetry(request: Request, env: Env): Promise<Response>;
+
   handleMCPRequest(request: Request, env: Env): Promise<Response>;
 }
-
-/** Get the R2 path prefix from env or use default */
-function r2Prefix(env: Env): string {
-  return env.R2_PATH_PREFIX || "resonant-mind-images";
-}
-
-/** Get the worker's public URL */
-function workerUrl(env: Env, request?: Request): string {
-  if (env.WORKER_URL) return env.WORKER_URL.replace(/\/$/, "");
-  if (request) return new URL(request.url).origin;
-  return "https://localhost";
-}
-
-/** Get the signing secret (prefer dedicated secret, fall back to API key) */
-function signingSecret(env: Env): string {
-  return env.SIGNING_SECRET || env.MIND_API_KEY;
-}
-
-const ALLOWED_IMAGE_TYPES = new Set([
-  "image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif", "image/svg+xml"
-]);
 
 /**
  * POST /api/images/upload — Direct file upload endpoint.
  * Accepts multipart/form-data. Bypasses MCP context window entirely.
+ *
+ * Usage from Claude Code:
+ *   curl -X POST https://your-worker.example/api/images/upload \
+ *     -H "Authorization: Bearer <key>" \
+ *     -F "file=@/path/to/image.png" \
+ *     -F "description=What the image shows" \
+ *     -F "entity_name=Self" \
+ *     -F "emotion=pride" \
+ *     -F "context=When and why this image matters" \
+ *     -F "weight=heavy" \
+ *     -F "filename=meaningful_name"
  */
 async function handleImageUpload(request: Request, env: Env): Promise<Response> {
   try {
@@ -133,12 +137,9 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
     const filename = formData.get("filename") as string || "";
     const observationId = formData.get("observation_id") as string || "";
 
-    if (!file) return jsonResponse({ error: "No file provided" }, 400);
+    if (!file) return jsonResponse({ error: "No file provided. Use -F 'file=@/path/to/image'" }, 400);
     if (!description) return jsonResponse({ error: "description is required" }, 400);
     if (file.size > 10 * 1024 * 1024) return jsonResponse({ error: "File too large. Max 10MB." }, 413);
-    if (file.type && !ALLOWED_IMAGE_TYPES.has(file.type)) {
-      return jsonResponse({ error: `Unsupported file type: ${file.type}. Allowed: png, jpeg, webp, gif, svg` }, 415);
-    }
 
     const mimeType = file.type || "image/png";
     const rawBytes = new Uint8Array(await file.arrayBuffer());
@@ -150,47 +151,22 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
       if (entity) entityId = entity.id as number;
     }
 
-    const prefix = r2Prefix(env);
+    // Store raw in R2 temporarily, convert to WebP via cf.image
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const safeName = (filename || description.slice(0, 50))
       .replace(/[^a-zA-Z0-9_-]/g, "_")
       .replace(/_+/g, "_")
       .slice(0, 60);
-    const rawKey = `_tmp_${date}_${safeName}`;
-    const webpKey = `${date}_${safeName}.webp`;
+    const ext = mimeType === "image/jpeg" ? ".jpg"
+      : mimeType === "image/webp" ? ".webp"
+      : mimeType === "image/gif" ? ".gif"
+      : ".png";
+    const storedKey = `${date}_${safeName}${ext}`;
+    await env.R2_IMAGES.put(storedKey, rawBytes, { httpMetadata: { contentType: mimeType } });
 
-    await env.R2_IMAGES.put(rawKey, rawBytes, { httpMetadata: { contentType: mimeType } });
-
-    let storedPath: string;
-    let finalBytes: Uint8Array = rawBytes;
-    let finalMime = mimeType;
-
-    try {
-      const baseUrl = workerUrl(env, request);
-      const r2Url = `${baseUrl}/r2/${rawKey}`;
-      const webpResponse = await fetch(r2Url, {
-        cf: { image: { format: "webp", quality: 80, fit: "scale-down", width: 1920, height: 1920 } },
-      });
-      if (webpResponse.ok) {
-        const webpBuffer = await webpResponse.arrayBuffer();
-        finalBytes = new Uint8Array(webpBuffer);
-        finalMime = "image/webp";
-        await env.R2_IMAGES.put(webpKey, webpBuffer, { httpMetadata: { contentType: "image/webp" } });
-        storedPath = `r2://${prefix}/${webpKey}`;
-      } else {
-        const ext = mimeType === "image/jpeg" ? ".jpg" : ".png";
-        const fallbackKey = `${date}_${safeName}${ext}`;
-        await env.R2_IMAGES.put(fallbackKey, rawBytes, { httpMetadata: { contentType: mimeType } });
-        storedPath = `r2://${prefix}/${fallbackKey}`;
-      }
-    } catch {
-      const ext = mimeType === "image/jpeg" ? ".jpg" : ".png";
-      const fallbackKey = `${date}_${safeName}${ext}`;
-      await env.R2_IMAGES.put(fallbackKey, rawBytes, { httpMetadata: { contentType: mimeType } });
-      storedPath = `r2://${prefix}/${fallbackKey}`;
-    }
-
-    await env.R2_IMAGES.delete(rawKey).catch(() => {});
+    const storedPath = `${R2_IMAGE_PATH_PREFIX}${storedKey}`;
+    const finalBytes: Uint8Array = rawBytes;
+    const finalMime = mimeType;
 
     // Insert into images table
     const result = await env.DB.prepare(`
@@ -200,7 +176,7 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
 
     const imageId = result.meta.last_row_id;
 
-    // Generate multimodal embedding
+    // Generate multimodal embedding (image + context text)
     const contextText = [
       entityName ? `${entityName}:` : "", description,
       context ? `(${context})` : "", emotion ? `[${emotion}]` : ""
@@ -209,6 +185,9 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
     let embedded = false;
     let embeddingError: string | null = null;
     try {
+      // Gemini accepts PNG, JPEG, WebP, HEIC, HEIF — verified 2026-05-17.
+      // We embed the original bytes (whatever was sent), not the WebP-converted version,
+      // to preserve resolution/fidelity at embedding time.
       const embedding = await getImageEmbedding(env.GEMINI_API_KEY, rawBytes.buffer as ArrayBuffer, mimeType, contextText);
       const metadata: Record<string, string> = {
         source: "image", description, weight, added_at: new Date().toISOString()
@@ -221,6 +200,7 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
       await env.VECTORS.upsert([{ id: `img-${imageId}`, values: embedding, metadata }]);
       embedded = true;
     } catch (e) {
+      // Embedding failed but image is stored — fall back to text embedding
       console.error("Multimodal embedding failed:", e);
       try {
         const textEmbedding = await getGeminiEmbedding(env.GEMINI_API_KEY, contextText);
@@ -233,7 +213,7 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
         metadata.path = storedPath;
         await env.VECTORS.upsert([{ id: `img-${imageId}`, values: textEmbedding, metadata }]);
         embedded = true;
-        embeddingError = "multimodal failed, used text fallback";
+        embeddingError = `multimodal failed (${String(e).slice(0, 100)}), used text fallback`;
       } catch { /* text fallback also failed */ }
     }
 
@@ -272,93 +252,107 @@ async function routeApiRequest(
   handlers: AppRouteHandlers,
   pathParts: string[]
 ): Promise<Response> {
+  // Shifts pathParts to drop the region segment so existing handlers see their
+  // original shape. e.g. /api/active/threads/123 → handler sees [api, threads, 123]
+  const shifted = (): string[] => [pathParts[0], ...pathParts.slice(2)];
+
   try {
-    if (pathParts[1] === "entities") {
-      return await handlers.handleApiEntities(request, env, pathParts);
-    }
+    const r1 = pathParts[1];
+    const r2 = pathParts[2];
 
-    if (pathParts[1] === "observations") {
-      if (pathParts[2] === "bulk") {
-        return await handlers.handleApiBulkObservations(request, env);
-      }
+    // ─── Cross-cutting (top-level) ───
+    // ops/manual surface, documented — Gate H (no dashboard consumer; curl/manual door)
+    if (r1 === "search") return await handlers.handleApiSearch(request, env);
+    // ops/manual surface, documented — Gate H (dashboard's /health page route is separate)
+    if (r1 === "health") return await handlers.handleApiHealth(env);
+    if (r1 === "telemetry") return await handlers.handleApiTelemetry(request, env);
+    // ops/manual surface, documented — Gate H
+    if (r1 === "process" && request.method === "POST") return await handlers.handleApiProcess(env);
+    if (r1 === "dream" && request.method === "POST") return await handlers.handleApiDream(request, env);
 
+    // ─── Raw data accessors (top-level) ───
+    // ops/manual surface, documented — Gate H: my hands when MCP is down + future Observatory drill-ins
+    if (r1 === "entities") return await handlers.handleApiEntities(request, env, pathParts);
+
+    // ops/manual surface, documented — Gate H
+    if (r1 === "observations") {
+      if (r2 === "bulk") return await handlers.handleApiBulkObservations(request, env);
       if (pathParts[3] === "versions") {
-        return await handlers.handleApiObservationVersions(
-          request,
-          env,
-          parseInt(pathParts[2], 10)
-        );
+        return await handlers.handleApiObservationVersions(request, env, parseInt(r2, 10));
       }
-
       return await handlers.handleApiObservations(request, env, pathParts);
     }
 
-    if (pathParts[1] === "journals") {
-      return await handlers.handleApiJournals(request, env, pathParts);
-    }
+    // ops/manual surface, documented — Gate H
+    if (r1 === "relations") return await handlers.handleApiRelations(request, env, pathParts);
+    // ops/manual surface, documented — Gate H
+    if (r1 === "context") return await handlers.handleApiContext(request, env, pathParts);
+    // ops/manual surface, documented — Gate H
+    if (r1 === "archive") return await handlers.handleApiArchive(request, env, pathParts);
 
-    if (pathParts[1] === "threads") {
-      return await handlers.handleApiThreads(request, env, pathParts);
-    }
-
-    if (pathParts[1] === "identity") {
-      return await handlers.handleApiIdentity(request, env, pathParts);
-    }
-
-    if (pathParts[1] === "relations") {
-      return await handlers.handleApiRelations(request, env, pathParts);
-    }
-
-    if (pathParts[1] === "images") {
-      if (pathParts[2] === "upload" && request.method === "POST") {
+    // ops/manual surface, documented — Gate H (curl upload workflow)
+    if (r1 === "images") {
+      if (r2 === "upload" && request.method === "POST") {
         return await handleImageUpload(request, env);
       }
       return await handlers.handleApiImages(request, env, pathParts);
     }
 
-    if (pathParts[1] === "context") {
-      return await handlers.handleApiContext(request, env, pathParts);
+    // ─── Spine region ───
+    // ops/manual surface, documented — Gate H (identity/spine table CRUD)
+    if (r1 === "spine") return await handlers.handleApiIdentity(request, env, shifted());
+
+    // ─── Compass region ───
+    if (r1 === "compass") return await handlers.handleApiCompass(request, env);
+
+    // ─── Bonds region ───
+    if (r1 === "bonds") return await handlers.handleApiBonds(request, env, pathParts);
+
+    // ─── Episodes region ───
+    if (r1 === "episodes") {
+      if (r2 === "recent") return await handlers.handleApiRecent(env);
     }
 
-    if (pathParts[1] === "search") return await handlers.handleApiSearch(request, env);
-    if (pathParts[1] === "surface") return await handlers.handleApiSurface(request, env);
-    if (pathParts[1] === "orient") return await handlers.handleApiOrient(env);
-    if (pathParts[1] === "ground") return await handlers.handleApiGround(env);
-    if (pathParts[1] === "health") return await handlers.handleApiHealth(env);
-    if (pathParts[1] === "health-scores") return await handlers.handleApiHealthScores(env);
-    if (pathParts[1] === "stats") return await handlers.handleApiStats(env);
-    if (pathParts[1] === "heat") return await handlers.handleApiHeat(env);
-    if (pathParts[1] === "recent") return await handlers.handleApiRecent(env);
-    if (pathParts[1] === "inner-weather") return await handlers.handleApiInnerWeather(env);
-    if (pathParts[1] === "patterns") return await handlers.handleApiPatterns(env);
-
-    if (pathParts[1] === "process" && request.method === "POST") {
-      return await handlers.handleApiProcess(env);
+    // ─── Active region ───
+    if (r1 === "active") {
+      if (r2 === "threads") {
+        // Gate H: bare GET-list (no id) is dead — superseded by GET /active/open,
+        // the dashboard's canonical thread read. Everything else (GET-by-id,
+        // POST create/resolve, PUT, DELETE) still routes here: thread.ts's MCP-side
+        // update/delete branches were removed in Wave 1 (§3 cleanup), so this file
+        // is now the ONLY door for thread update/delete. Don't delete further.
+        if (!(request.method === "GET" && !pathParts[3])) {
+          return await handlers.handleApiThreads(request, env, shifted());
+        }
+      }
+      if (r2 === "open") return await handlers.handleApiActiveOpen(request, env);
     }
 
-    if (pathParts[1] === "tensions") {
-      return await handlers.handleApiTensions(request, env, pathParts);
+    // ─── Weather region ───
+    if (r1 === "weather") {
+      if (!r2) return await handlers.handleApiInnerWeather(env);
+      if (r2 === "trend") return await handlers.handleApiWeatherTrend(request, env);
     }
 
-    if (pathParts[1] === "proposals") {
-      return await handlers.handleApiProposals(request, env, pathParts);
-    }
 
-    if (pathParts[1] === "dormant") {
-      return await handlers.handleApiDormant(request, env, pathParts);
-    }
-
-    if (pathParts[1] === "isolated") {
-      return await handlers.handleApiIsolated(request, env, pathParts);
-    }
-
-    if (pathParts[1] === "archive") {
-      return await handlers.handleApiArchive(request, env, pathParts);
+    // ─── Dreams region ───
+    if (r1 === "dreams") {
+      if (r2 === "living-surface") return await handlers.handleApiLivingSurface(request, env);
+      // ops/manual surface, documented — Gate H
+      if (r2 === "last") return await handlers.handleApiDreamLast(request, env);
+      // ops/manual surface, documented — Gate H (audition room, dev/test-only)
+      if (r2 === "compose-test" && request.method === "POST") {
+        return await handlers.handleApiDreamComposeTest(request, env);
+      }
+      // ops/manual surface, documented — Gate H
+      if (r2 === "proposals") return await handlers.handleApiProposals(request, env, shifted());
+      // ops/manual surface, documented — Gate H
+      if (r2 === "orphans") return await handlers.handleApiOrphans(request, env, shifted());
     }
 
     return jsonResponse({ error: "Unknown API endpoint" }, 404);
   } catch (error) {
-    console.error("API error:", error);
+    console.error("API request failed:", error);
     return jsonResponse({ error: "Internal server error" }, 500);
   }
 }
@@ -369,7 +363,6 @@ export async function routeRequest(
   handlers: AppRouteHandlers
 ): Promise<Response> {
   const url = new URL(request.url);
-  const prefix = r2Prefix(env);
 
   if (url.pathname === "/health") {
     return withSecurityHeaders(
@@ -380,27 +373,30 @@ export async function routeRequest(
   }
 
   // Image viewing: /img/{id} with signed URL (no API key exposed)
+  // URL format: /img/{id}?expires={timestamp}&sig={hmac}
   if (url.pathname.startsWith("/img/") && env.R2_IMAGES) {
     const expires = url.searchParams.get("expires");
     const sig = url.searchParams.get("sig");
     const imageId = url.pathname.slice(5);
 
     if (!expires || !sig) return new Response("Missing signature", { status: 401 });
-    if (parseInt(expires) < Math.floor(Date.now() / 1000)) return new Response("URL expired", { status: 403 });
+    const expiresAt = Number(expires);
+    const now = Math.floor(Date.now() / 1000);
+    if (!Number.isSafeInteger(expiresAt) || expiresAt <= now || expiresAt > now + 3600) {
+      return new Response("Invalid or expired URL", { status: 403 });
+    }
 
-    // Verify HMAC with timing-safe comparison
+    // Verify HMAC: sign(SIGNING_SECRET, "imageId:expires").
     const encoder = new TextEncoder();
-    const secret = signingSecret(env);
-    const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const key = await crypto.subtle.importKey("raw", encoder.encode(env.SIGNING_SECRET || env.MIND_API_KEY), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
     const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(`${imageId}:${expires}`));
     const expectedSig = Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, "0")).join("");
     if (!timingSafeEqual(sig, expectedSig)) return new Response("Invalid signature", { status: 401 });
-
     const img = await env.DB.prepare("SELECT path FROM images WHERE id = ?").bind(imageId).first();
-    if (!img?.path || !String(img.path).startsWith(`r2://${prefix}/`)) {
+    if (!img?.path || !String(img.path).startsWith(R2_IMAGE_PATH_PREFIX)) {
       return new Response("Not found", { status: 404 });
     }
-    const r2Key = String(img.path).replace(`r2://${prefix}/`, "");
+    const r2Key = String(img.path).slice(R2_IMAGE_PATH_PREFIX.length);
     const object = await env.R2_IMAGES.get(r2Key);
     if (!object) return new Response("Not found", { status: 404 });
     return new Response(object.body, {
@@ -408,20 +404,6 @@ export async function routeRequest(
         "Content-Type": object.httpMetadata?.contentType || "image/webp",
         "Cache-Control": "private, max-age=3600",
       }
-    });
-  }
-
-  // Internal R2 serving (used by cf.image transform for WebP conversion)
-  // All R2 access requires authentication — no _tmp_ bypass
-  if (url.pathname.startsWith("/r2/") && env.R2_IMAGES) {
-    if (!isAuthorizedRequest(request, env)) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-    const key = url.pathname.slice(4);
-    const object = await env.R2_IMAGES.get(key);
-    if (!object) return new Response("Not found", { status: 404 });
-    return new Response(object.body, {
-      headers: { "Content-Type": object.httpMetadata?.contentType || "image/png" }
     });
   }
 
@@ -501,6 +483,20 @@ export async function routeRequest(
 
     return withSecurityHeaders(
       await handlers.handleMCPRequest(request, env),
+      request,
+      env
+    );
+  }
+
+  // MCP Streamable HTTP preflight (GET/HEAD): strict clients (e.g. Hermes) check
+  // Content-Type before connecting. Answer application/json on the MCP path so it
+  // reads as an MCP endpoint, not a web page. (Claude Code ignores this; the real
+  // protocol is POST, which already returns application/json.)
+  if ((url.pathname === "/mcp" || usesConnectorPath) && (request.method === "GET" || request.method === "HEAD")) {
+    return withSecurityHeaders(
+      new Response(request.method === "HEAD" ? null : JSON.stringify({ status: "ok", transport: "streamable-http" }), {
+        headers: { "Content-Type": "application/json" }
+      }),
       request,
       env
     );
