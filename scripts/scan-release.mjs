@@ -1,7 +1,8 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = fileURLToPath(new URL('..', import.meta.url));
 const roots = ['src', 'migrations', 'scripts', 'docs'];
 const configFiles = ['package.json', 'wrangler.toml', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE'];
 const forbiddenPaths = [/^dashboard\//, /^_archive\//, /(?:^|\/)\.env(?:\.|$)/, /snapshot/i];
@@ -31,7 +32,7 @@ const files = [...configFiles.map((name) => join(root, name))];
 for (const dir of roots) files.push(...await walk(join(root, dir)));
 const failures = [];
 for (const file of files) {
-  const rel = relative(root, file);
+  const rel = relative(root, file).replace(/\\/g, '/');
   if (forbiddenPaths.some((re) => re.test(rel))) failures.push(`${rel}: forbidden path`);
   if (rel === 'scripts/scan-release.mjs') continue;
   if (!/\.(?:ts|js|mjs|json|toml|sql|md)$/.test(file)) continue;
