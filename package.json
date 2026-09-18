@@ -12,6 +12,7 @@
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:postgres": "vitest run tests/postgres-v4.integration.test.ts",
     "test:registry": "vitest run tests/registry.test.ts",
     "scan:release": "node scripts/scan-release.mjs",
     "db:migrate": "node scripts/migrate-postgres.mjs",

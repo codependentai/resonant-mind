@@ -130,9 +130,13 @@ export async function handleMindRead(env: Env, params: Record<string, unknown>):
         `SELECT sit_note, sat_at FROM observation_sits WHERE observation_id = ? ORDER BY sat_at DESC`
       ).bind(obsId).all();
 
-      // Get version history
+      // The released fresh-v4 table stores snapshots as content/weight/emotion
+      // at edited_at. Keep the established direct-read response keys stable.
       const versions = await env.DB.prepare(
-        `SELECT previous_content, previous_weight, previous_emotion, changed_at FROM observation_versions WHERE observation_id = ? ORDER BY changed_at DESC`
+        `SELECT content AS previous_content, weight AS previous_weight, emotion AS previous_emotion, edited_at AS changed_at
+         FROM observation_versions
+         WHERE observation_id = ?
+         ORDER BY edited_at DESC`
       ).bind(obsId).all();
 
       // Get supersession chain

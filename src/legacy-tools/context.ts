@@ -69,17 +69,18 @@ export async function handleMindContext(env: Env, params: Record<string, unknown
       const id = params.id as string;
       const scope = params.scope as string;
 
+      if (id && scope) return "Clear context by either id or scope, not both.";
+
       if (id) {
-        await env.DB.prepare(`DELETE FROM context_entries WHERE id = ?`).bind(id).run();
+        const result = await env.DB.prepare(`DELETE FROM context_entries WHERE id = ?`).bind(id).run();
+        if ((result.meta.changes ?? 0) === 0) return `Context entry not found: ${id}`;
         return `Context entry deleted: ${id}`;
       } else if (scope) {
-        await env.DB.prepare(`DELETE FROM context_entries WHERE scope = ?`).bind(scope).run();
-        return `All context entries in scope '${scope}' deleted`;
+        const result = await env.DB.prepare(`DELETE FROM context_entries WHERE scope = ?`).bind(scope).run();
+        return `Context scope '${scope}' cleared (${result.meta.changes ?? 0} deleted)`;
       } else {
-        // Clear ALL context entries
-        const count = await env.DB.prepare(`SELECT COUNT(*) as count FROM context_entries`).first();
-        await env.DB.prepare(`DELETE FROM context_entries`).run();
-        return `All context entries cleared (${count?.count || 0} deleted)`;
+        const result = await env.DB.prepare(`DELETE FROM context_entries`).run();
+        return `All context entries cleared (${result.meta.changes ?? 0} deleted)`;
       }
     }
 
