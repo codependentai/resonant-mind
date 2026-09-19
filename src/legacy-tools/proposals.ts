@@ -273,7 +273,7 @@ export async function handleMindProposals(env: Env, params: Record<string, unkno
     case "reject": {
       if (!proposalId) return "proposal_id required for reject";
 
-      // Gate J (RESHAPE-2-SPEC.md, 2026-07-11): stamp the pair's live
+      // Gate J (the v4 contract, 2026-07-11): stamp the pair's live
       // co_surfacing.co_count at rejection time, so a future daemon pass can
       // tell a stale "no" from new evidence (co_count has since climbed well
       // past what the mind actually reviewed). NULL when there's no obs pair to

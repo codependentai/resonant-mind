@@ -62,7 +62,7 @@ export interface SubconsciousState {
     modulation?: AffectModulation;
     unacked_startles?: number;
     /**
-     * Drive gauge (DRIVE-LAYER-SPEC §1.3). Absent when the pass didn't run
+     * Drive gauge (the drive-layer contract §1.3). Absent when the pass didn't run
      * (schema not migrated / failed); `{ drives: [], note: 'no drives walked
      * in yet' }` when migrated but unseeded — honest, not absent.
      */
@@ -127,7 +127,7 @@ export async function recordCoSurfacing(env: Env, obsIds: number[]): Promise<voi
 /**
  * Update surface tracking — marks when things surface, decays novelty.
  * Critical: uses `GREATEST` (Postgres) not `MAX(a,b)` (SQLite). See C1 fix
- * notes in MIND_RESHAPE_PLAN.md — this was silently broken for 50 days.
+ * notes in the v4 design — this was silently broken for 50 days.
  */
 export async function updateSurfaceTracking(env: Env, obsIds: number[], imgIds: number[] = []): Promise<void> {
   if (obsIds.length > 0) {

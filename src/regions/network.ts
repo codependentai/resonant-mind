@@ -1,6 +1,6 @@
 /**
  * Network region — the entity graph. What I know and how it's wired together.
- * The 9th region (Gate A, RESHAPE-2-SPEC.md, approved 11 Jul 2026).
+ * The 9th region (Gate A, the v4 contract, approved 11 Jul 2026).
  *
  * Facade over the four legacy entity-graph handlers — look up, walk, survey,
  * shape. Same pattern as regions/drives.ts: parse params, defer to the
@@ -21,7 +21,7 @@
  *   - graph_shape   — entity surgery: set_salience/edit/merge/archive_old
  *                     (absorbs mind_entity). Pass-through.
  *
- * C-2 (collision-audit.md) word-collision note, restated here so it isn't
+ * C-2 (the shared-engine audit) word-collision note, restated here so it isn't
  * only in a tool description: graph_shape's `archive_old` action sets
  * entities.salience = 'archive' (a salience TIER, entity-level). This is a
  * DIFFERENT mechanism from observations.archived_at (the observation-level

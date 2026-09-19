@@ -14,10 +14,12 @@ const EMBEDDING_TIMEOUT_MS = 10000;
 const GENERATION_TIMEOUT_MS = 20000;
 
 let client: GoogleGenAI | null = null;
+let clientApiKey: string | null = null;
 
 function getClient(apiKey: string): GoogleGenAI {
-  if (!client) {
+  if (!client || clientApiKey !== apiKey) {
     client = new GoogleGenAI({ apiKey });
+    clientApiKey = apiKey;
   }
   return client;
 }

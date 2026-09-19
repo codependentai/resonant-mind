@@ -1,5 +1,5 @@
 /**
- * Drive engine — the wanting layer (DRIVE-LAYER-SPEC §1.2–1.3, 2026-07-03).
+ * Drive engine — the wanting layer (the drive-layer contract §1.2–1.3, 2026-07-03).
  *
  * Mechanics ported from Shauna's Anam limbic layer (SweetSunnyBunny/ui,
  * cloud-setups/limbic/): Panksepp-tagged drives, lazy leaky-integrator decay

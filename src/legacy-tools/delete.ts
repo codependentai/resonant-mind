@@ -14,7 +14,7 @@ export async function handleMindDelete(env: Env, params: Record<string, unknown>
   const textMatch = params.text_match as string;
 
   if (observationId) {
-    // Shared engine (collision-audit.md D-3): observation_sits + embeddings +
+    // Shared engine (the collision audit D-3): observation_sits + embeddings +
     // observation_versions + orphan_observations cleaned, one complete
     // implementation for both this MCP path and HTTP's.
     const result = await deleteObservation(env, observationId);
@@ -35,7 +35,7 @@ export async function handleMindDelete(env: Env, params: Record<string, unknown>
   }
 
   if (entityName) {
-    // Shared engine (collision-audit.md D-3): embeddings cleanup for the entity
+    // Shared engine (the collision audit D-3): embeddings cleanup for the entity
     // + its observations, one complete implementation for both this MCP path
     // and HTTP's.
     const result = await deleteEntity(env, { entityName });

@@ -79,7 +79,7 @@ export async function runProposals(env: Env): Promise<ProposalsResult> {
 
   // 1. Co-surfacing strong pairs — internal resonance or relation proposals
   //
-  // Gate J (RESHAPE-2-SPEC.md, 2026-07-11): a rejected pair is no longer
+  // Gate J (the v4 contract, 2026-07-11): a rejected pair is no longer
   // sticky forever — if the pair's live co_count has since climbed to 3x
   // (or more) what it was when the mind rejected it, that's new evidence and
   // the pair becomes proposable again. A pending proposal ALWAYS blocks

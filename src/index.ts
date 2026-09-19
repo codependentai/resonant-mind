@@ -14,6 +14,7 @@ import { createVectorAdapter } from "./vectors";
 import { RESONANT_MIND_VERSION } from "./shared/constants";
 import { TOOLS, mcpToolHandlers } from "./mcp/registry";
 import { processSubconscious } from "./daemon";
+import { scheduleDaemon } from "./scheduled";
 import { handleApiEntities } from "./http/handlers/entities";
 import { handleApiObservations } from "./http/handlers/observations";
 import { handleApiThreads } from "./http/handlers/threads";
@@ -99,10 +100,6 @@ export default {
   },
 
   async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(
-      processSubconscious(withPostgresAdapters(env)).catch((e) =>
-        console.error("daemon failed:", e)
-      )
-    );
+    scheduleDaemon(ctx, () => processSubconscious(withPostgresAdapters(env)));
   },
 };

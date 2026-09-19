@@ -23,7 +23,7 @@ export interface BondWarmth {
   last_observed_at: string | null;
 }
 
-// Thresholds (in days). Tuning happens post-spike per RESHAPE_IMPLEMENTATION.md §10.
+// Thresholds (in days). Tuning happens post-spike per the v4 implementation §10.
 const WARM_MAX = 1;
 const COOLING_MAX = 4;
 const COLD_MAX = 14;

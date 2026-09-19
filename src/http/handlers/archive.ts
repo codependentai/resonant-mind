@@ -72,7 +72,7 @@ export async function handleApiArchive(request: Request, env: Env, pathParts: st
   }
 
   // POST /api/archive/:id/rescue - un-archive observation
-  // Delegates to the shared rescue engine (collision-audit.md C-1) — was a
+  // Delegates to the shared rescue engine (the collision audit C-1) — was a
   // standalone inline UPDATE with a different novelty_score than the MCP
   // door; now both doors converge on one semantic.
   if (request.method === "POST" && id && action === "rescue") {

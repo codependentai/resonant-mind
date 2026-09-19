@@ -4,6 +4,26 @@ All notable changes to Resonant Mind. Previously released as "Mind Cloud" (v1.0�
 
 ---
 
+## [4.0.1] - 2026-09-19
+
+### Fixed
+
+- Aligned observation version-history reads and active-context clearing with the released fresh-v4 PostgreSQL schema, with production pgvector integration coverage.
+- Preserved rescued observations until genuine resurfacing and propagated scheduled daemon failures to the Cloudflare scheduler.
+- Returned explicit 404 responses for unsupported OAuth discovery and dynamic-registration routes.
+- Hardened image ingestion with bounded structural validation, canonical MIME/extension handling, unique R2 keys, compensating cleanup, safe signed serving, and bounded remote retrieval.
+- Sanitised unexpected MCP errors while preserving actionable validation errors and truthful image-index warning outcomes.
+
+### Release integrity
+
+- Updated the Node 22 development and deployment toolchain to a zero-vulnerability audit baseline.
+- Expanded release-content scanning across source, tests, root release files, and GitHub YAML configuration.
+- Added disposable PostgreSQL/pgvector CI that applies the full released migration chain and exercises production database and vector adapters.
+- Preserved released migrations `0001`–`0017`; added append-only migration `0018_rescued_at.sql`.
+- Fresh v4 databases remain supported. A safe in-place v3.2→v4 migration has not yet been demonstrated and is not included in this release.
+
+---
+
 ## [4.0.0] - 2026-07-14
 
 ### The Reshape release

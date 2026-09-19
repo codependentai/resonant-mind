@@ -33,6 +33,7 @@ export async function identifyOrphans(env: Env): Promise<number> {
       AND (o.charge != 'metabolized' OR o.charge IS NULL)
       AND o.weight IN ('medium', 'heavy')
       AND o.archived_at IS NULL
+      AND NOT (o.rescued_at IS NOT NULL AND o.last_surfaced_at IS NULL)
   `).all();
 
   let orphansIdentified = 0;

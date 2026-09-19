@@ -94,7 +94,7 @@ export async function handleMindGround(env: Env): Promise<string> {
     output += milestones.results.map((m: any) => String(m.content).slice(0, 40)).join(" · ") + "\n";
   }
 
-  // Body interrupt — the wanting layer's exception surface (DRIVE-LAYER-SPEC
+  // Body interrupt — the wanting layer's exception surface (the drive-layer contract
   // §1.5). Ground stays lean: ONE line, only when (a) a drive sits pinned at
   // ceiling/floor, or (b) a quiet want has gone unmet past 48h while still
   // charged (>= 0.5). Silence otherwise — the body interrupts grounding only

@@ -8,6 +8,14 @@ import { createApiPreflightResponse, withSecurityHeaders } from "./response";
 import { getEmbedding as getGeminiEmbedding, getImageEmbedding } from "../embeddings";
 import type { Env } from "../types";
 import { R2_IMAGE_PATH_PREFIX } from "../shared/constants";
+import {
+  canonicalImageMimeFromKey,
+  ImageSizeLimitError,
+  MAX_IMAGE_BYTES,
+  MAX_MULTIPART_IMAGE_BYTES,
+  readBodyWithLimit,
+  validateImageBytes,
+} from "../shared/image-security";
 
 /**
  * The `/api/*` surface is two-tier (pruned Gate H, Mind Reshape 2 Wave 4):
@@ -27,7 +35,7 @@ import { R2_IMAGE_PATH_PREFIX } from "../shared/constants";
  * /episodes/journals, /active/tensions (MCP's active_tense already owns full
  * tension CRUD; this HTTP copy had zero consumers), and /active/threads' bare
  * GET-list (superseded by /active/open — its other verbs survive, see above).
- * See docs/reshape-2/RESHAPE-2-SPEC.md Gate H + dead-code-report.md §5.
+ * See the v4 contract Gate H + the dead-code audit §5.
  */
 interface AppRouteHandlers {
   processSubconscious(env: Env): Promise<void>;
@@ -126,8 +134,26 @@ interface AppRouteHandlers {
  *     -F "filename=meaningful_name"
  */
 async function handleImageUpload(request: Request, env: Env): Promise<Response> {
+  let storedKeyForCleanup: string | null = null;
+  let databaseCommitted = false;
   try {
-    const formData = await request.formData();
+    let requestBytes: Uint8Array;
+    try {
+      requestBytes = await readBodyWithLimit(request, MAX_MULTIPART_IMAGE_BYTES);
+    } catch (error) {
+      if (error instanceof ImageSizeLimitError) {
+        return jsonResponse({ error: "Upload body too large. Max image size is 10MB." }, 413);
+      }
+      return jsonResponse({ error: "Invalid upload body" }, 400);
+    }
+    const boundedHeaders = new Headers(request.headers);
+    boundedHeaders.delete("content-length");
+    const boundedRequest = new Request(request.url, {
+      method: request.method,
+      headers: boundedHeaders,
+      body: requestBytes,
+    });
+    const formData = await boundedRequest.formData();
     const file = formData.get("file") as File | null;
     const description = formData.get("description") as string || "";
     const entityName = formData.get("entity_name") as string || "";
@@ -139,10 +165,19 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
 
     if (!file) return jsonResponse({ error: "No file provided. Use -F 'file=@/path/to/image'" }, 400);
     if (!description) return jsonResponse({ error: "description is required" }, 400);
-    if (file.size > 10 * 1024 * 1024) return jsonResponse({ error: "File too large. Max 10MB." }, 413);
+    if (file.size > MAX_IMAGE_BYTES) return jsonResponse({ error: "File too large. Max 10MB." }, 413);
 
-    const mimeType = file.type || "image/png";
     const rawBytes = new Uint8Array(await file.arrayBuffer());
+    if (rawBytes.byteLength > MAX_IMAGE_BYTES) {
+      return jsonResponse({ error: "File too large after decoding. Max 10MB." }, 413);
+    }
+    let imageFormat;
+    try {
+      imageFormat = validateImageBytes(rawBytes);
+    } catch (error) {
+      return jsonResponse({ error: error instanceof Error ? error.message : "Unsupported image bytes" }, 415);
+    }
+    const mimeType = imageFormat.mime;
 
     // Resolve entity
     let entityId: number | null = null;
@@ -151,18 +186,15 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
       if (entity) entityId = entity.id as number;
     }
 
-    // Store raw in R2 temporarily, convert to WebP via cf.image
+    // Store the validated original with canonical metadata and extension.
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const safeName = (filename || description.slice(0, 50))
       .replace(/[^a-zA-Z0-9_-]/g, "_")
       .replace(/_+/g, "_")
       .slice(0, 60);
-    const ext = mimeType === "image/jpeg" ? ".jpg"
-      : mimeType === "image/webp" ? ".webp"
-      : mimeType === "image/gif" ? ".gif"
-      : ".png";
-    const storedKey = `${date}_${safeName}${ext}`;
+    const storedKey = `${date}_${safeName}_${crypto.randomUUID()}${imageFormat.extension}`;
     await env.R2_IMAGES.put(storedKey, rawBytes, { httpMetadata: { contentType: mimeType } });
+    storedKeyForCleanup = storedKey;
 
     const storedPath = `${R2_IMAGE_PATH_PREFIX}${storedKey}`;
     const finalBytes: Uint8Array = rawBytes;
@@ -175,6 +207,7 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
     `).bind(storedPath, description, context || null, emotion || null, weight, entityId, observationId ? parseInt(observationId) : null).run();
 
     const imageId = result.meta.last_row_id;
+    databaseCommitted = true;
 
     // Generate multimodal embedding (image + context text)
     const contextText = [
@@ -184,11 +217,21 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
 
     let embedded = false;
     let embeddingError: string | null = null;
+    let embedding: number[] | null = null;
     try {
-      // Gemini accepts PNG, JPEG, WebP, HEIC, HEIF — verified 2026-05-17.
-      // We embed the original bytes (whatever was sent), not the WebP-converted version,
-      // to preserve resolution/fidelity at embedding time.
-      const embedding = await getImageEmbedding(env.GEMINI_API_KEY, rawBytes.buffer as ArrayBuffer, mimeType, contextText);
+      embedding = await getImageEmbedding(env.GEMINI_API_KEY, rawBytes.buffer as ArrayBuffer, mimeType, contextText);
+    } catch (multimodalError) {
+      console.error("Multimodal embedding failed:", multimodalError);
+      try {
+        embedding = await getGeminiEmbedding(env.GEMINI_API_KEY, contextText);
+        embeddingError = `multimodal failed (${String(multimodalError).slice(0, 100)}), used text fallback`;
+      } catch (textError) {
+        embeddingError = `stored with index warning: embedding unavailable (${String(textError).slice(0, 100)})`;
+        console.error("Image stored without embedding:", textError);
+      }
+    }
+
+    if (embedding) {
       const metadata: Record<string, string> = {
         source: "image", description, weight, added_at: new Date().toISOString()
       };
@@ -196,25 +239,13 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
       if (context) metadata.context = context;
       if (emotion) metadata.emotion = emotion;
       metadata.path = storedPath;
-
-      await env.VECTORS.upsert([{ id: `img-${imageId}`, values: embedding, metadata }]);
-      embedded = true;
-    } catch (e) {
-      // Embedding failed but image is stored — fall back to text embedding
-      console.error("Multimodal embedding failed:", e);
       try {
-        const textEmbedding = await getGeminiEmbedding(env.GEMINI_API_KEY, contextText);
-        const metadata: Record<string, string> = {
-          source: "image", description, weight, added_at: new Date().toISOString()
-        };
-        if (entityName) metadata.entity = entityName;
-        if (context) metadata.context = context;
-        if (emotion) metadata.emotion = emotion;
-        metadata.path = storedPath;
-        await env.VECTORS.upsert([{ id: `img-${imageId}`, values: textEmbedding, metadata }]);
+        await env.VECTORS.upsert([{ id: `img-${imageId}`, values: embedding, metadata }]);
         embedded = true;
-        embeddingError = `multimodal failed (${String(e).slice(0, 100)}), used text fallback`;
-      } catch { /* text fallback also failed */ }
+      } catch (vectorError) {
+        embeddingError = `stored with index warning: vector indexing failed (${String(vectorError).slice(0, 100)})`;
+        console.error("Image stored but vector indexing failed:", vectorError);
+      }
     }
 
     const originalSize = rawBytes.length;
@@ -234,6 +265,13 @@ async function handleImageUpload(request: Request, env: Env): Promise<Response> 
       emotion: emotion || null,
     });
   } catch (e) {
+    if (storedKeyForCleanup && !databaseCommitted) {
+      try {
+        await env.R2_IMAGES.delete(storedKeyForCleanup);
+      } catch (cleanupError) {
+        console.error("Upload cleanup failed:", cleanupError);
+      }
+    }
     console.error("Upload error:", e);
     return jsonResponse({ error: "Image upload failed" }, 500);
   }
@@ -364,6 +402,22 @@ export async function routeRequest(
 ): Promise<Response> {
   const url = new URL(request.url);
 
+  const isUnsupportedOAuthRoute =
+    url.pathname === "/register"
+    || url.pathname === "/oauth/register"
+    || url.pathname === "/.well-known/oauth-authorization-server"
+    || url.pathname.startsWith("/.well-known/oauth-authorization-server/")
+    || url.pathname === "/.well-known/oauth-protected-resource"
+    || url.pathname.startsWith("/.well-known/oauth-protected-resource/");
+
+  if (isUnsupportedOAuthRoute) {
+    return withSecurityHeaders(
+      jsonResponse({ error: "Not found" }, 404),
+      request,
+      env
+    );
+  }
+
   if (url.pathname === "/health") {
     return withSecurityHeaders(
       jsonResponse({ status: "ok", service: "resonant-mind" }),
@@ -397,11 +451,19 @@ export async function routeRequest(
       return new Response("Not found", { status: 404 });
     }
     const r2Key = String(img.path).slice(R2_IMAGE_PATH_PREFIX.length);
+    const contentType = canonicalImageMimeFromKey(r2Key);
+    if (!contentType) {
+      return new Response("Unsupported image format", {
+        status: 415,
+        headers: { "X-Content-Type-Options": "nosniff" },
+      });
+    }
     const object = await env.R2_IMAGES.get(r2Key);
     if (!object) return new Response("Not found", { status: 404 });
     return new Response(object.body, {
       headers: {
-        "Content-Type": object.httpMetadata?.contentType || "image/webp",
+        "Content-Type": contentType,
+        "X-Content-Type-Options": "nosniff",
         "Cache-Control": "private, max-age=3600",
       }
     });

@@ -20,7 +20,7 @@
  * compass_refuse and compass_hold write back as compass_provenance rows tagged
  * with strength = 1.0 and 0.5 respectively. They're "lived assertions."
  *
- * collision-audit.md E-1: compass_refuse and compass_hold share the exact
+ * the collision audit E-1: compass_refuse and compass_hold share the exact
  * same provenance write-shape (source_type='thread', source_id=epoch-seconds,
  * same table) — deliberate, not accidental. They're distinguished only by the
  * `reason` string prefix ('refusal: ' vs 'held'/'held: <note>') and by strength.
@@ -133,7 +133,7 @@ export async function handleCompassRead(env: Env, params: Record<string, unknown
     (a, b) => (KIND_ORDER[a] ?? 99) - (KIND_ORDER[b] ?? 99)
   );
 
-  // Gate F (RESHAPE-2-SPEC.md): compass_provenance is written on every
+  // Gate F (the v4 contract): compass_provenance is written on every
   // compass_create/compass_assert (+ refuse/hold) but had no dedicated read
   // path — only an indirect count in /api/telemetry. show_provenance=true
   // surfaces the actual evidence trail per row, newest first, capped 5.

@@ -256,7 +256,7 @@ export async function processSubconscious(env: Env): Promise<void> {
     console.log(`Somatic markers error: ${e}`);
   }
 
-  // === Drive layer (DRIVE-LAYER-SPEC §1.3) — the wanting layer's tick.
+  // === Drive layer (the drive-layer contract §1.3) — the wanting layer's tick.
   // The tick is INTEGRATION, not a redundant refresh: resampling re-anchors
   // each drive's decay under the environment of THIS moment — env moves the
   // attractor between ticks, and without a fresh sample the old anchor

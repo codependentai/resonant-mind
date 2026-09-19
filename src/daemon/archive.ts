@@ -28,6 +28,7 @@ export async function runDeepArchivePass(env: Env): Promise<number> {
         AND (o.last_surfaced_at IS NULL OR o.last_surfaced_at < datetime('now', '-30 days'))
         AND o.added_at < datetime('now', '-${ARCHIVE_AGE_DAYS} days')
         AND (o.charge != 'processing' OR o.charge IS NULL)
+        AND NOT (o.rescued_at IS NOT NULL AND o.last_surfaced_at IS NULL)
         AND COALESCE(e.salience, 'active') != 'foundational'
       UNION
       SELECT o.id
@@ -39,6 +40,7 @@ export async function runDeepArchivePass(env: Env): Promise<number> {
         AND (o.last_surfaced_at IS NULL OR o.last_surfaced_at < datetime('now', '-60 days'))
         AND o.added_at < datetime('now', '-90 days')
         AND (o.charge != 'processing' OR o.charge IS NULL)
+        AND NOT (o.rescued_at IS NOT NULL AND o.last_surfaced_at IS NULL)
         AND COALESCE(e.salience, 'active') != 'foundational'
     )
     LIMIT 50

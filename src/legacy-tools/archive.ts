@@ -55,7 +55,7 @@ export async function handleMindArchive(env: Env, params: Record<string, unknown
 
       if (!obs) return `Observation #${observationId} not found in archive`;
 
-      // Un-archive via the shared engine (collision-audit.md C-1): clears
+      // Un-archive via the shared engine (the collision audit C-1): clears
       // archived_at + resets novelty_score/last_surfaced_at so the scorer
       // actually resurfaces this again, rather than a bare inline UPDATE.
       await rescueObservation(env, observationId);

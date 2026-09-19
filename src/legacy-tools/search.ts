@@ -2,7 +2,7 @@
  * handleMindSearch — vector + text search across the mind.
  * Mood tinting, filters, multi-factor composite scoring, access tracking.
  *
- * collision-audit.md E-3: this reads as a pure query in name and registry
+ * the shared-engine audit E-3: this reads as a pure query in name and registry
  * description, but it has a hidden write side-effect — access-tracking
  * (`access_count`/`last_accessed_at`) is bumped for surfaced observations via
  * recordAccessTracking. Not a collision (no second tool claims this write),

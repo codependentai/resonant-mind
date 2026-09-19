@@ -7,7 +7,7 @@
  * will move here too and `index.ts` will import both.
  *
  * Future: post-R3, this file should contain only the new region-facade verbs
- * (~23 tools) instead of the current 27 flat tools. See MIND_RESHAPE_PLAN.md.
+ * (~23 tools) instead of the current 27 flat tools. See the v4 design.
  */
 
 import type { MCPToolDefinition, MCPToolHandlerMap } from "../types";
@@ -39,7 +39,7 @@ import { handleMindStoreImage } from "../legacy-tools/store-image";
 // weather.ts, episodes.ts, dreams.ts) wrap them internally. handleMindConsolidate
 // is removed entirely from MCP — daemon runs consolidation directly.
 
-// Region facades (Phase B+, RESHAPE_IMPLEMENTATION.md)
+// Region facades (Phase B+, the v4 implementation)
 import {
   handleCompassRead,
   handleCompassCreate,
@@ -120,7 +120,7 @@ export const mcpToolHandlers: MCPToolHandlerMap = {
   // Region facades — Dreams (R2)
   dream_surface: async (env, params) => handleDreamSurface(env, params),
   dream_discard: async (env, params) => handleDreamDiscard(env, params),
-  // Region facades — Drives (R8, DRIVE-LAYER-SPEC decision #10)
+  // Region facades — Drives (R8, the drive-layer contract decision #10)
   drive_state: async (env, params) => handleDriveState(env, params),
   drive_perceive: async (env, params) => handleDrivePerceive(env, params),
   drive_touch: async (env, params) => handleDriveTouch(env, params),
@@ -582,7 +582,7 @@ export const TOOLS: MCPToolDefinition[] = [
   },
   {
     name: "graph_shape",
-    description: "Entity surgery — set salience, edit properties, merge duplicates, bulk-archive by age (absorbs mind_entity). Note (C-2, collision-audit.md): `archive_old` sets entities.salience = 'archive' — a salience TIER on the entity, a DIFFERENT mechanism from observations.archived_at (the observation-level timestamp Surgery's mind_archive owns). Same word, unrelated columns/tables — don't expect archived_at-style recoverability semantics here.",
+    description: "Entity surgery — set salience, edit properties, merge duplicates, bulk-archive by age (absorbs mind_entity). Note (C-2, the collision audit): `archive_old` sets entities.salience = 'archive' — a salience TIER on the entity, a DIFFERENT mechanism from observations.archived_at (the observation-level timestamp Surgery's mind_archive owns). Same word, unrelated columns/tables — don't expect archived_at-style recoverability semantics here.",
     inputSchema: {
       type: "object",
       properties: {
@@ -893,14 +893,14 @@ export const TOOLS: MCPToolDefinition[] = [
   // ============================================================
   {
     name: "mind_store_image",
-    description: "[Mind region: attention] Store, view, search, or delete visual memories. For store: pass source_url (an https URL the worker can fetch — preferred for any file ≥20KB, agent passes only the URL string) OR image_data (base64, for genuinely small images <20KB). Plus description. Worker handles WebP conversion, R2 upload, and multimodal Gemini embedding atomically — no D1 row written unless R2 succeeds.",
+    description: "[Mind region: attention] Store, view, search, or delete visual memories. For store: pass source_url (a public https URL the worker can fetch) OR image_data (base64, for genuinely small images). Plus description. The Worker validates JPEG/PNG/GIF/WebP bytes; the validated original is durably stored in R2 before its database row is written. The multimodal embedding may fall back to text; if indexing still fails, the image remains stored and the tool returns an explicit stored-with-index-warning outcome.",
     inputSchema: {
       type: "object",
       properties: {
         action: { type: "string", enum: ["store", "view", "search", "delete"], description: "store=upload new image, view=browse images, search=semantic image search, delete=remove image" },
-        source_url: { type: "string", description: "For store (preferred): https URL the worker can fetch the image from. Use this for any image larger than ~20KB. Worker will fetch with a 15s timeout, 10MB size limit, and detect mime from Content-Type." },
-        image_data: { type: "string", description: "For store (small only): base64-encoded image bytes (no data URI prefix). Only use for images <20KB — larger base64 strings can't be emitted as a tool parameter. Prefer source_url." },
-        mime_type: { type: "string", description: "For store: image/png, image/jpeg, image/webp, etc. Default: image/png. Overridden by Content-Type when using source_url." },
+        source_url: { type: "string", description: "For store: public https URL without credentials. Fetching uses validated manual redirects, a 15s absolute timeout, and a 10MB streamed limit. Local/private/special-use literal hosts are rejected; Worker APIs cannot guarantee DNS pinning." },
+        image_data: { type: "string", description: "For store (small only): base64-encoded JPEG, PNG, GIF, or WebP bytes (no data URI prefix). Encoded and decoded sizes are bounded at 10MB decoded; prefer source_url for larger tool payloads." },
+        mime_type: { type: "string", description: "Legacy compatibility hint only. The stored MIME type and extension are always derived from validated image bytes." },
         filename: { type: "string", description: "For store: meaningful filename for the R2 key (will be sanitized)" },
         description: { type: "string", description: "For store: what the image shows. Required for store." },
         entity_name: { type: "string", description: "For store/view: linked entity name" },

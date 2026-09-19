@@ -1,10 +1,17 @@
-import { readdir, readFile, stat } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { lstat, readdir, readFile } from 'node:fs/promises';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
-const roots = ['src', 'migrations', 'scripts', 'docs'];
-const configFiles = ['package.json', 'wrangler.toml', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'LICENSE'];
+const defaultRoot = fileURLToPath(new URL('..', import.meta.url));
+const rootArg = process.argv.indexOf('--root');
+const root = rootArg >= 0 ? resolve(process.argv[rootArg + 1]) : defaultRoot;
+const ignoredDirectories = new Set(['.git', '.wrangler', 'node_modules', 'coverage', 'dist', 'build']);
+const ignoredFiles = new Set(['package-lock.json']);
+const allowedChangelogLines = new Set([
+  '- `for_simon` context scope renamed to `for_owner`',
+  '- Basic auth client ID changed from `simon-mind` to `resonant-mind`',
+  '- R2 path prefix changed from `simon-mind-images` to `resonant-mind-images` (configurable)',
+]);
 const forbiddenPaths = [/^dashboard\//, /^_archive\//, /(?:^|\/)\.env(?:\.|$)/, /snapshot/i];
 const forbiddenContent = [
   { label: 'private person name', re: /\b(?:Mary|Simon|Ghost|Jace|Julia|Wren|Mason|Iris|Ward|Hale|Quill|Reeve|Vale)\b/i },
@@ -20,23 +27,28 @@ const forbiddenContent = [
 async function walk(path) {
   const out = [];
   for (const name of await readdir(path)) {
+    if (ignoredFiles.has(name)) continue;
     const full = join(path, name);
-    const info = await stat(full);
-    if (info.isDirectory()) out.push(...await walk(full));
-    else out.push(full);
+    const info = await lstat(full);
+    if (info.isSymbolicLink()) continue;
+    if (info.isDirectory() && !ignoredDirectories.has(name)) out.push(...await walk(full));
+    else if (!info.isDirectory()) out.push(full);
   }
   return out;
 }
 
-const files = [...configFiles.map((name) => join(root, name))];
-for (const dir of roots) files.push(...await walk(join(root, dir)));
+const files = await walk(root);
 const failures = [];
 for (const file of files) {
   const rel = relative(root, file).replace(/\\/g, '/');
   if (forbiddenPaths.some((re) => re.test(rel))) failures.push(`${rel}: forbidden path`);
   if (rel === 'scripts/scan-release.mjs') continue;
-  if (!/\.(?:ts|js|mjs|json|toml|sql|md)$/.test(file)) continue;
-  const text = await readFile(file, 'utf8');
+  if (!/\.(?:ts|js|mjs|json|toml|sql|md|ya?ml)$/.test(file)) continue;
+  let text = await readFile(file, 'utf8');
+  if (rel === 'CHANGELOG.md') {
+    const remainingAllowances = new Set(allowedChangelogLines);
+    text = text.split(/\r?\n/).filter((line) => !remainingAllowances.delete(line)).join('\n');
+  }
   for (const rule of forbiddenContent) if (rule.re.test(text)) failures.push(`${rel}: ${rule.label}`);
 }
 if (failures.length) {

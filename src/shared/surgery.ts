@@ -1,6 +1,6 @@
 /**
- * Surgery engines — THE complete edit/delete implementations (collision-audit.md D-3,
- * RESHAPE-2-SPEC.md Gate N's "one door per (act, target)" principle).
+ * Surgery engines — THE complete edit/delete implementations (the shared-engine audit D-3,
+ * the v4 behavior Gate N's "one door per (act, target)" principle).
  *
  * D-3 found three complementary-incomplete cleanup mismatches between the HTTP and
  * MCP surfaces — each side did HALF the correct work:
@@ -59,7 +59,7 @@ export interface EditObservationResult {
 }
 
 /**
- * editObservation — THE one edit engine for observations (collision-audit.md D-3).
+ * editObservation — THE one edit engine for observations (the shared-engine audit D-3).
  * Lifted verbatim from legacy-tools/edit.ts's original observation branch
  * (version-history row -> content update -> re-embed), extracted so both the
  * MCP and HTTP surfaces get the complete flow instead of half of it.
@@ -168,7 +168,7 @@ export interface DeleteObservationResult {
 }
 
 /**
- * deleteObservation — THE one delete engine for observations (collision-audit.md D-3).
+ * deleteObservation — THE one delete engine for observations (the shared-engine audit D-3).
  * Union of both prior partial implementations: HTTP's `observation_sits` cleanup
  * + MCP's `embeddings` cleanup, plus the two neither side did explicitly
  * (`observation_versions`, `orphan_observations` — see file header re: these
@@ -224,7 +224,7 @@ export interface DeleteEntityResult {
 }
 
 /**
- * deleteEntity — THE one delete engine for entities (collision-audit.md D-3).
+ * deleteEntity — THE one delete engine for entities (the shared-engine audit D-3).
  * Lifted from legacy-tools/delete.ts's entity branch (already the more-complete
  * side — it clean embeddings for the entity AND its observations), which the
  * HTTP `DELETE /api/entities/:id` path skipped entirely. Callers may resolve by

@@ -46,7 +46,7 @@ Raw household, wearable, calendar, relationship, or health feeds belong in deplo
 
 ## Images
 
-Images are validated, stored directly in R2 in their original supported format, embedded multimodally, and represented in Postgres. Signed view URLs use HMAC with bounded expiry and constant-time verification. No unauthenticated temporary-object route or bundled image-conversion proxy exists.
+Images are capped at 10MB decoded, identified from their bytes as JPEG, PNG, GIF, or WebP, and stored directly in R2 with a canonical extension and MIME type. Base64 and multipart inputs are bounded before and after decoding/parsing. Remote HTTPS retrieval uses manually validated redirects, a finite absolute timeout, and declared plus streamed byte ceilings; literal local/private/special-use hosts are rejected, but the Worker runtime cannot provide application-level DNS pinning. Signed view URLs use HMAC with bounded expiry and constant-time verification, and responses derive an allowlisted type from the canonical key with `nosniff` rather than reflecting R2 metadata. No unauthenticated temporary-object route or bundled image-conversion proxy exists.
 
 ## Schema
 

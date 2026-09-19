@@ -1,6 +1,6 @@
 /**
  * handleMindStoreImage — store/view/search/delete images with R2 + multimodal embedding.
- * Converts uploaded images to WebP via Cloudflare Image Resizing.
+ * Stores validated JPEG/PNG/GIF/WebP originals with canonical metadata.
  */
 
 import type { Env } from "../types";
@@ -8,16 +8,16 @@ import { getEmbedding, imageUrl } from "../shared/mind-helpers";
 import { getImageEmbedding } from "../embeddings";
 import { normalizeText } from "../shared/text";
 import { R2_IMAGE_PATH_PREFIX } from "../shared/constants";
+import { decodeBase64Image, fetchRemoteImage, validateImageBytes } from "../shared/image-security";
 
 export async function handleMindStoreImage(env: Env, params: Record<string, unknown>): Promise<string> {
   const action = params.action as string;
 
-  // === STORE: (image_data OR source_url) → R2 (with WebP) → multimodal embed → D1.
-  // Atomic: if R2 or embedding fails, no D1 row. No "pending" state possible.
+  // === STORE: validate → unique R2 object → embedding → durable row → optional vector index.
+  // Failures before the row commits remove the new object; indexing failures return a stored warning.
   if (action === "store") {
     const imageData = params.image_data as string | undefined;
     const sourceUrl = params.source_url as string | undefined;
-    let mimeType = (params.mime_type as string) || "image/png";
     const filename = params.filename as string;
     const description = params.description as string;
     const entityName = params.entity_name as string;
@@ -40,100 +40,98 @@ export async function handleMindStoreImage(env: Env, params: Record<string, unkn
     // --- Acquire raw bytes: either decode base64 or fetch the source URL. ---
     let rawBinary: Uint8Array;
     if (sourceUrl) {
-      if (!/^https:\/\//i.test(sourceUrl)) {
-        return "Error: source_url must be https://";
-      }
       try {
-        const fetchResp = await fetch(sourceUrl, {
-          headers: { "User-Agent": "resonant-mind/store-image" },
-          signal: AbortSignal.timeout(15000),
-        });
-        if (!fetchResp.ok) {
-          return `Error: source_url fetch returned ${fetchResp.status} ${fetchResp.statusText}`;
-        }
-        const contentLength = parseInt(fetchResp.headers.get("content-length") || "0", 10);
-        if (contentLength > 10 * 1024 * 1024) {
-          return `Error: source_url file too large (${Math.round(contentLength / 1024 / 1024)}MB, max 10MB)`;
-        }
-        const fetchedType = fetchResp.headers.get("content-type")?.split(";")[0].trim();
-        if (fetchedType && fetchedType.startsWith("image/")) {
-          mimeType = fetchedType;
-        }
-        const arrayBuf = await fetchResp.arrayBuffer();
-        if (arrayBuf.byteLength > 10 * 1024 * 1024) {
-          return `Error: source_url file too large after fetch (${Math.round(arrayBuf.byteLength / 1024 / 1024)}MB, max 10MB)`;
-        }
-        rawBinary = new Uint8Array(arrayBuf);
+        rawBinary = await fetchRemoteImage(sourceUrl);
       } catch (e) {
-        return `Error: source_url fetch failed — ${String(e).slice(0, 120)}`;
+        return `Error: source_url fetch failed — ${e instanceof Error ? e.message : String(e).slice(0, 120)}`;
       }
     } else {
       try {
-        rawBinary = Uint8Array.from(atob(imageData!), c => c.charCodeAt(0));
+        rawBinary = decodeBase64Image(imageData!);
       } catch (e) {
-        return `Error: base64 decode failed — image_data is not valid base64 (${String(e).slice(0, 100)})`;
+        return `Error: base64 decode failed — ${e instanceof Error ? e.message : "image_data is not valid base64"}`;
       }
     }
 
-    // --- R2 upload (with WebP conversion). Throws on failure → no D1 insert. ---
+    let imageFormat;
+    try {
+      imageFormat = validateImageBytes(rawBinary);
+    } catch (error) {
+      return `Error: ${error instanceof Error ? error.message : "unsupported image bytes"}`;
+    }
+    const mimeType = imageFormat.mime;
+
+    // --- R2 upload. Throws on failure → no D1 insert. ---
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const safeName = (filename || description.slice(0, 50))
       .replace(/[^a-zA-Z0-9_-]/g, "_")
       .replace(/_+/g, "_")
       .slice(0, 60);
-    const ext = mimeType === "image/jpeg" ? ".jpg"
-      : mimeType === "image/webp" ? ".webp"
-      : mimeType === "image/gif" ? ".gif"
-      : ".png";
-    const storedKey = `${date}_${safeName}${ext}`;
+    const storedKey = `${date}_${safeName}_${crypto.randomUUID()}${imageFormat.extension}`;
     await env.R2_IMAGES.put(storedKey, rawBinary, { httpMetadata: { contentType: mimeType } });
 
     const storedPath = `${R2_IMAGE_PATH_PREFIX}${storedKey}`;
     const storedMime = mimeType;
+    let databaseCommitted = false;
 
-    // --- Multimodal embedding. Gemini accepts PNG, JPEG, WebP, HEIC, HEIF. ---
-    const contextText = [
-      entityName ? `${entityName}:` : "", description,
-      context ? `(${context})` : "", emotion ? `[${emotion}]` : ""
-    ].filter(Boolean).join(" ");
-
-    let embedding: number[];
-    let embeddingNote: string | null = null;
     try {
-      embedding = await getImageEmbedding(env.GEMINI_API_KEY, rawBinary.buffer as ArrayBuffer, mimeType, contextText);
-    } catch (e) {
-      // Multimodal failed — fall back to text embedding rather than block the store.
-      embedding = await getEmbedding(env, contextText);
-      embeddingNote = `multimodal failed (${String(e).slice(0, 80)}), used text fallback`;
+      const contextText = [
+        entityName ? `${entityName}:` : "", description,
+        context ? `(${context})` : "", emotion ? `[${emotion}]` : ""
+      ].filter(Boolean).join(" ");
+
+      let embedding: number[];
+      let embeddingNote: string | null = null;
+      try {
+        embedding = await getImageEmbedding(env.GEMINI_API_KEY, rawBinary.buffer as ArrayBuffer, mimeType, contextText);
+      } catch (multimodalError) {
+        embedding = await getEmbedding(env, contextText);
+        embeddingNote = `multimodal failed (${String(multimodalError).slice(0, 80)}), used text fallback`;
+      }
+
+      const result = await env.DB.prepare(`
+        INSERT INTO images (path, description, context, emotion, weight, entity_id, observation_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(storedPath, description, context || null, normalizeText(emotion), weight, entityId, observationId || null).run();
+
+      const imageId = result.meta.last_row_id;
+      databaseCommitted = true;
+      const imgMetadata: Record<string, string> = {
+        source: "image", description, weight, added_at: new Date().toISOString(), path: storedPath
+      };
+      if (entityName) imgMetadata.entity = entityName;
+      if (context) imgMetadata.context = context;
+      if (emotion) imgMetadata.emotion = normalizeText(emotion) || emotion;
+
+      let indexWarning: string | null = null;
+      try {
+        await env.VECTORS.upsert([{ id: `img-${imageId}`, values: embedding, metadata: imgMetadata }]);
+      } catch (vectorError) {
+        indexWarning = `index warning: stored, but vector indexing failed (${String(vectorError).slice(0, 100)})`;
+        console.error("Image stored but vector indexing failed:", vectorError);
+      }
+
+      let response = `Image stored (#${imageId}) [R2: ${storedMime}, ${embeddingNote ? "text-fallback" : "multimodal"} embedded${indexWarning ? ", index pending" : ""}]`;
+      if (embeddingNote) response += `\n${embeddingNote}`;
+      if (indexWarning) response += `\n${indexWarning}`;
+      if (entityName) response += `\nEntity: ${entityName}`;
+      if (emotion) response += ` | Emotion: ${emotion}`;
+      response += `\nPath: ${storedPath}`;
+      return response;
+    } catch (error) {
+      if (!databaseCommitted) {
+        try {
+          await env.R2_IMAGES.delete(storedKey);
+        } catch (cleanupError) {
+          console.error("Image store cleanup failed:", cleanupError);
+        }
+      }
+      throw error;
     }
-
-    // --- D1 insert only after R2 succeeded. ---
-    const result = await env.DB.prepare(`
-      INSERT INTO images (path, description, context, emotion, weight, entity_id, observation_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).bind(storedPath, description, context || null, normalizeText(emotion), weight, entityId, observationId || null).run();
-
-    const imageId = result.meta.last_row_id;
-
-    // --- Vectorize upsert. ---
-    const imgMetadata: Record<string, string> = {
-      source: "image", description, weight, added_at: new Date().toISOString(), path: storedPath
-    };
-    if (entityName) imgMetadata.entity = entityName;
-    if (context) imgMetadata.context = context;
-    if (emotion) imgMetadata.emotion = normalizeText(emotion) || emotion;
-    await env.VECTORS.upsert([{ id: `img-${imageId}`, values: embedding, metadata: imgMetadata }]);
-
-    let response = `Image stored (#${imageId}) [R2: ${storedMime}, ${embeddingNote ? "text-fallback" : "multimodal"} embedded]`;
-    if (embeddingNote) response += `\n${embeddingNote}`;
-    if (entityName) response += `\nEntity: ${entityName}`;
-    if (emotion) response += ` | Emotion: ${emotion}`;
-    response += `\nPath: ${storedPath}`;
-    return response;
   }
 
   // === VIEW: Browse images by filter ===
-  // collision-audit.md E-3: "view" reads as a browse/query action but has a
+  // the shared-engine audit E-3: "view" reads as a browse/query action but has a
   // real hidden write below — every returned image gets last_viewed_at/
   // view_count bumped. Same class as mind_search/graph_look's (né
   // mind_read_entity) access-tracking; flagged so this doesn't get mistaken

@@ -1,7 +1,7 @@
 // HTTP handler for /api/orphans — extracted from src/index.ts.
 import { jsonResponse } from "../response";
 import type { Env } from "../../types";
-import { archiveObservation } from "../../shared/archive-observation";
+import { archiveObservation, rescueObservation } from "../../shared/archive-observation";
 
 export async function handleApiOrphans(request: Request, env: Env, pathParts: string[]): Promise<Response> {
   const id = pathParts[2] ? parseInt(pathParts[2]) : null;
@@ -26,14 +26,12 @@ export async function handleApiOrphans(request: Request, env: Env, pathParts: st
 
   // POST /api/orphans/:id/surface - force surface an orphan
   if (request.method === "POST" && id && action === "surface") {
-    // Remove from orphan list
+    // Make the rescue durable before removing its queue entry.
+    await rescueObservation(env, id);
+
+    // Remove from orphan list only after the rescue succeeds.
     await env.DB.prepare(
       `DELETE FROM orphan_observations WHERE observation_id = ?`
-    ).bind(id).run();
-
-    // Reset novelty to make it surface
-    await env.DB.prepare(
-      `UPDATE observations SET novelty_score = 1.0, last_surfaced_at = NULL WHERE id = ?`
     ).bind(id).run();
 
     return jsonResponse({ success: true });

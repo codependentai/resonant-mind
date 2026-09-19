@@ -83,7 +83,7 @@ export async function handleMindRead(env: Env, params: Record<string, unknown>):
          ORDER BY o.added_at DESC`
       ).bind(cutoff).all();
 
-      // D-3 (collision-audit.md): episode_recall previously couldn't read what
+      // D-3 (the shared-engine audit): episode_recall previously couldn't read what
       // episode_record writes — journals were invisible to its own region's
       // recall verb. Journals have no `context`/`entity_id` column (see
       // migrations/postgres/0001_core.sql), so only the hours filter applies
@@ -130,9 +130,13 @@ export async function handleMindRead(env: Env, params: Record<string, unknown>):
         `SELECT sit_note, sat_at FROM observation_sits WHERE observation_id = ? ORDER BY sat_at DESC`
       ).bind(obsId).all();
 
-      // Get version history
+      // The released fresh-v4 table stores snapshots as content/weight/emotion
+      // at edited_at. Keep the established direct-read response keys stable.
       const versions = await env.DB.prepare(
-        `SELECT previous_content, previous_weight, previous_emotion, changed_at FROM observation_versions WHERE observation_id = ? ORDER BY changed_at DESC`
+        `SELECT content AS previous_content, weight AS previous_weight, emotion AS previous_emotion, edited_at AS changed_at
+         FROM observation_versions
+         WHERE observation_id = ?
+         ORDER BY edited_at DESC`
       ).bind(obsId).all();
 
       // Get supersession chain

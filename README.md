@@ -122,6 +122,8 @@ Use MCP `tools/list` for complete live schemas and descriptions.
 
 - Every cognitive/API route fails closed without authentication.
 - Signed image URLs use HMAC and constant-time comparison.
+- Image uploads are capped at 10MB decoded and accepted only when their bytes validate as JPEG, PNG, GIF, or WebP; caller and R2 MIME metadata are not trusted.
+- Remote image URLs are HTTPS-only, follow at most three manually validated redirects, use a 15-second absolute deadline, and reject literal local/private/special-use hosts. Cloudflare Workers do not expose DNS resolution or socket pinning, so this is not a DNS-rebinding guarantee.
 - Raw exceptions are logged server-side and not returned to clients.
 - R2 objects have no unauthenticated temporary-object exception.
 - Public source contains no lived memories, private snapshots, deployment IDs, or hard-coded household entities.

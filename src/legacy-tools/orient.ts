@@ -184,7 +184,7 @@ export async function handleMindOrient(env: Env): Promise<string> {
     }
   }
 
-  // Drives — the wanting layer (DRIVE-LAYER-SPEC §1.5, 2026-07-03). Reads
+  // Drives — the wanting layer (the drive-layer contract §1.5, 2026-07-03). Reads
   // the gauge the daemon's drive tick left in living_surface.drives:
   // weather is how I feel; drives are what I'm moved toward. Absent gauge
   // (pre-migration / pass didn't run) → render nothing at all. Gauge with a
