@@ -29,6 +29,8 @@ Resonant Mind runs as a Cloudflare Worker — your deployment, your data.
 - **API key authentication** — cognitive APIs, MCP, daemon triggers, and operational routes require auth; `/health` is intentionally public and image objects require bounded signed URLs
 - **Timing-safe comparisons** — API keys and HMAC signatures use constant-time comparison
 - **Signed image URLs** — time-limited, HMAC-signed URLs for image access (no API key exposure)
+- **Image content validation** — JPEG, PNG, GIF, and WebP are identified from bounded bytes rather than caller or R2 metadata; signed responses use a canonical allowlisted type plus `X-Content-Type-Options: nosniff`
+- **Bounded remote image fetches** — HTTPS-only URLs, no credentials, validated manual redirects, literal local/private/special-use host rejection, declared and streamed 10MB ceilings, and a 15-second absolute timeout
 - **Parameterized queries** — all SQL uses parameterized bindings to prevent injection
 - **Error sanitization** — internal errors are logged server-side, generic messages returned to clients
 
@@ -40,6 +42,7 @@ Resonant Mind runs as a Cloudflare Worker — your deployment, your data.
 - **CORS origin** — set `DASHBOARD_ALLOWED_ORIGIN` to restrict which domains can call the API
 - **Gemini API key** — this is sent to Google's API for embeddings. Treat it as a secret.
 - **Neon connection string** — the Postgres connection string contains credentials. Never commit it — use a Cloudflare Hyperdrive binding for the Worker and a secret environment variable for migrations.
+- **Worker DNS boundary** — Workers do not expose DNS resolution or socket pinning to application code. Remote image fetching therefore cannot promise DNS-rebinding/private-resolution protection; use direct uploads instead when the source URL is not fully trusted.
 
 ### Rate limiting
 

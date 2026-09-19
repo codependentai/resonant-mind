@@ -31,4 +31,13 @@ describe('public MCP registry', () => {
     ]);
     expect(JSON.stringify(pulse)).not.toMatch(/\bher\b|cycle|meal|sleep/i);
   });
+
+  it('describes image storage and indexing outcomes truthfully', () => {
+    const imageTool = TOOLS.find((tool) => tool.name === 'mind_store_image');
+    expect(imageTool).toBeDefined();
+    expect(imageTool!.description).toMatch(/durably stored/i);
+    expect(imageTool!.description).toMatch(/multimodal embedding may fall back to text/i);
+    expect(imageTool!.description).toMatch(/stored-with-index-warning/i);
+    expect(imageTool!.description).not.toMatch(/creates a multimodal Gemini embedding/i);
+  });
 });
