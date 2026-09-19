@@ -83,7 +83,7 @@ export async function handleMindRead(env: Env, params: Record<string, unknown>):
          ORDER BY o.added_at DESC`
       ).bind(cutoff).all();
 
-      // D-3 (collision-audit.md): episode_recall previously couldn't read what
+      // D-3 (the shared-engine audit): episode_recall previously couldn't read what
       // episode_record writes — journals were invisible to its own region's
       // recall verb. Journals have no `context`/`entity_id` column (see
       // migrations/postgres/0001_core.sql), so only the hours filter applies

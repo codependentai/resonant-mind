@@ -1,5 +1,5 @@
 /**
- * Drives region — the wanting layer's public surface (DRIVE-LAYER-SPEC §1.4,
+ * Drives region — the wanting layer's public surface (the drive-layer contract §1.4,
  * decision #10). The eighth region.
  *
  * Weather is how I feel; drives are what I'm moved toward; somatic is what

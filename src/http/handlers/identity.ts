@@ -55,7 +55,7 @@ export async function handleApiIdentity(request: Request, env: Env, pathParts: s
   }
 
   // DELETE /api/identity/:section — SOFT archive (soft-delete by design).
-  // Was a raw hard DELETE — the exact second-door landmine collision-audit.md
+  // Was a raw hard DELETE — the exact second-door landmine the collision audit
   // Part 0 warned about, coexisting with spine_amend{remove}'s soft archive on
   // the same table. Identity rows are identity: they fade, they don't vanish.
   if (method === "DELETE" && section) {

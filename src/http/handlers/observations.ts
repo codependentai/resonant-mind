@@ -105,7 +105,7 @@ export async function handleApiObservations(request: Request, env: Env, pathPart
   }
 
   // PUT /api/observations/:id - update
-  // Shared engine (collision-audit.md D-3): version-history + content update +
+  // Shared engine (the collision audit D-3): version-history + content update +
   // re-embed, same complete flow mind_edit uses. Response shape unchanged.
   if (method === "PUT" && obsId) {
     const body = await request.json() as Record<string, unknown>;
@@ -118,7 +118,7 @@ export async function handleApiObservations(request: Request, env: Env, pathPart
   }
 
   // DELETE /api/observations/:id - delete
-  // Shared engine (collision-audit.md D-3): observation_sits + embeddings +
+  // Shared engine (the collision audit D-3): observation_sits + embeddings +
   // observation_versions + orphan_observations cleaned, same complete flow
   // mind_delete uses. Response shape unchanged.
   if (method === "DELETE" && obsId) {

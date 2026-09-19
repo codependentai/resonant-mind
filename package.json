@@ -16,18 +16,18 @@
     "test:registry": "vitest run tests/registry.test.ts",
     "scan:release": "node scripts/scan-release.mjs",
     "db:migrate": "node scripts/migrate-postgres.mjs",
-    "verify": "npm run typecheck && npm test && npm run scan:release && npm audit --omit=dev --audit-level=moderate"
+    "verify": "npm run typecheck && npm test && npm run scan:release && npm audit --audit-level=moderate"
   },
   "dependencies": {
     "@google/genai": "2.11.0",
     "pg": "8.20.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20260714.1",
+    "@cloudflare/workers-types": "5.20260918.1",
     "@types/pg": "8.20.0",
     "typescript": "5.9.3",
-    "vitest": "3.2.7",
-    "wrangler": "4.110.0"
+    "vitest": "4.1.11",
+    "wrangler": "4.135.0"
   },
   "overrides": {
     "protobufjs": "7.6.5",

@@ -22,7 +22,7 @@
  * archive are ritual_tend's job now (the daemon's other review queue), backed
  * by `legacy-tools/orphans.ts` + `shared/archive-observation.ts`. This file
  * does NOT own orphan-archive logic (a prior version of this docstring
- * claimed it did — corrected 2026-07-11, collision-audit.md E-2). What's
+ * claimed it did — corrected 2026-07-11, the shared-engine audit E-2). What's
  * left here for orphans/proposals is redirect strings only: `dream_surface
  * {kind:'orphans'}` and `dream_discard{observation_id}` still accept the
  * calls but point to ritual_tend — orphans may still surface here as dream

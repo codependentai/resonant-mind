@@ -5,7 +5,7 @@
  * As of Mind Reshape 2 §1.1 (2026-07-11), review of this queue moved to
  * `ritual_tend` — the daemon's two review queues (proposals + orphans) live
  * in one place now. This file stays as the engine underneath: 'surface' is
- * tend's `rescue` action (rescued from dead-code status — dead-code-report.md
+ * tend's `rescue` action (rescued from dead-code status — the dead-code audit
  * §3 confirmed it was unreachable from any MCP path), 'archive' is tend's
  * `archive` action (delegates to the shared archiveObservation engine,
  * review). The old 'list' case was deleted after review —
@@ -44,7 +44,7 @@ export async function handleMindOrphans(env: Env, params: Record<string, unknown
         WHERE observation_id = ?
       `).bind(observationId).run();
 
-      // The rescue act itself (collision-audit.md C-1): shared engine, same
+      // The rescue act itself (the shared-engine audit C-1): shared engine, same
       // one mind_archive{rescue} and the HTTP endpoint call. This replaces
       // the old inline "mark surfaced" UPDATE — novelty-reset is what
       // actually drives resurfacing through the scorer, so the message below
@@ -72,7 +72,7 @@ export async function handleMindOrphans(env: Env, params: Record<string, unknown
 
       if (!orphan) return `Observation #${observationId} not in orphan list`;
 
-      // Gate N #3 (RESHAPE-2-SPEC.md): ONE archive engine — shared with the
+      // Gate N #3 (the v4 contract): ONE archive engine — shared with the
       // HTTP admin endpoint via shared/archive-observation.ts. Built at the
       // Consolidated after review found four divergent inline
       // implementations of this exact act.

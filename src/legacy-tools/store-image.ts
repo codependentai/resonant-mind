@@ -133,7 +133,7 @@ export async function handleMindStoreImage(env: Env, params: Record<string, unkn
   }
 
   // === VIEW: Browse images by filter ===
-  // collision-audit.md E-3: "view" reads as a browse/query action but has a
+  // the shared-engine audit E-3: "view" reads as a browse/query action but has a
   // real hidden write below — every returned image gets last_viewed_at/
   // view_count bumped. Same class as mind_search/graph_look's (né
   // mind_read_entity) access-tracking; flagged so this doesn't get mistaken

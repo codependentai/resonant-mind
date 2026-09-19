@@ -171,7 +171,7 @@ export async function handleMindEdit(env: Env, params: Record<string, unknown>):
       return "No updates provided";
     }
 
-    // Shared engine (collision-audit.md D-3): version-history + content update +
+    // Shared engine (the collision audit D-3): version-history + content update +
     // re-embed, one complete implementation for both this MCP path and HTTP's.
     const result = await editObservation(env, obs.id as number, {
       content: newContent || undefined,

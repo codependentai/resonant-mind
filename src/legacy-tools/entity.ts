@@ -3,7 +3,7 @@
  * Re-vectorizes after edits.
  *
  * The engine under regions/network.ts's `graph_shape` verb (Gate A, Mind
- * Reshape 2). C-2 (collision-audit.md): `archive_old` sets entities.salience
+ * Reshape 2). C-2 (the collision audit): `archive_old` sets entities.salience
  * = 'archive' — an entity-level salience TIER, NOT the same mechanism as
  * observations.archived_at (the observation-level timestamp Surgery's
  * mind_archive owns). Same word, two unrelated columns/tables.

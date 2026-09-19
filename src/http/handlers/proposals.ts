@@ -41,7 +41,7 @@ export async function handleApiProposals(request: Request, env: Env, pathParts: 
 
   // POST /api/proposals/:id/accept - accept proposal
   // Delegates entirely to handleMindProposals (legacy-tools/proposals.ts),
-  // the one engine behind ritual_tend (collision-audit.md C-3/D-1 fix). The
+  // the one engine behind ritual_tend (the collision audit C-3/D-1 fix). The
   // old inline implementation here INSERTed into a nonexistent relations.context
   // column (every relation-type accept threw) and had no branches for
   // compass_addition/identity_addition at all (those kinds 409'd as "missing

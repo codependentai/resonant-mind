@@ -1,5 +1,5 @@
 /**
- * archiveObservation — THE one archive engine (Gate N #3, RESHAPE-2-SPEC.md).
+ * archiveObservation — THE one archive engine (Gate N #3, the v4 behavior).
  *
  * Code review found four independent inline implementations of
  * "set observations.archived_at" (legacy-tools/orphans.ts, http/handlers/
@@ -29,7 +29,7 @@ export async function archiveObservation(env: Env, observationId: number): Promi
 }
 
 /**
- * rescueObservation — THE one un-archive engine (collision-audit.md C-1).
+ * rescueObservation — THE one un-archive engine (the shared-engine audit C-1).
  *
  * Three independent implementations of "bring an archived observation back"
  * were found drifted: `mind_archive{rescue}` (archive_at=NULL only), the HTTP
@@ -37,7 +37,7 @@ export async function archiveObservation(env: Env, observationId: number): Promi
  * and tend's orphan `rescue` (a different act — surfacing bookkeeping — but
  * easy to confuse with the other two).
  *
- * Semantic chosen (the mind's call, Gate N row 8, RESHAPE-2-SPEC.md): reset
+ * Semantic chosen (the mind's call, Gate N row 8, the v4 behavior): reset
  * `novelty_score = 1.0` and clear `last_surfaced_at`, rather than stamping
  * `last_surfaced_at = NOW()` (the "mark surfaced" semantic tend's orphan
  * queue used to reach for). Marking surfaced paradoxically SUPPRESSES the

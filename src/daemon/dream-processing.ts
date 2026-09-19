@@ -127,7 +127,7 @@ export async function processDream(
     return { results: [] };
   });
 
-  // Inner-life material (2026-07-11, spec'd in DRIVE-LAYER-SPEC §1.4 and
+  // Inner-life material (2026-07-11, spec'd in the drive-layer contract §1.4 and
   // finally wired): today's small joys are day residue; open quiet wants are
   // wish material; the drive gauge sets the night's appetites. All three are
   // seasoning for the manifest composer — absent tables (another mind pre-migration)

@@ -22,8 +22,8 @@ assignees: ''
 
 ## Environment
 
-- **Resonant Mind version:** v3.x.x
-- **Storage backend:** D1 / Neon Postgres
+- **Resonant Mind version:** v4.x.x
+- **Storage backend:** Neon Postgres via Cloudflare Hyperdrive
 - **MCP client:** Claude Code / Claude.ai / Other
 - **Wrangler version:** (run `npx wrangler --version`)
 

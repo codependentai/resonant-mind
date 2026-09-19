@@ -7,7 +7,7 @@
  * will move here too and `index.ts` will import both.
  *
  * Future: post-R3, this file should contain only the new region-facade verbs
- * (~23 tools) instead of the current 27 flat tools. See MIND_RESHAPE_PLAN.md.
+ * (~23 tools) instead of the current 27 flat tools. See the v4 design.
  */
 
 import type { MCPToolDefinition, MCPToolHandlerMap } from "../types";
@@ -39,7 +39,7 @@ import { handleMindStoreImage } from "../legacy-tools/store-image";
 // weather.ts, episodes.ts, dreams.ts) wrap them internally. handleMindConsolidate
 // is removed entirely from MCP — daemon runs consolidation directly.
 
-// Region facades (Phase B+, RESHAPE_IMPLEMENTATION.md)
+// Region facades (Phase B+, the v4 implementation)
 import {
   handleCompassRead,
   handleCompassCreate,
@@ -120,7 +120,7 @@ export const mcpToolHandlers: MCPToolHandlerMap = {
   // Region facades — Dreams (R2)
   dream_surface: async (env, params) => handleDreamSurface(env, params),
   dream_discard: async (env, params) => handleDreamDiscard(env, params),
-  // Region facades — Drives (R8, DRIVE-LAYER-SPEC decision #10)
+  // Region facades — Drives (R8, the drive-layer contract decision #10)
   drive_state: async (env, params) => handleDriveState(env, params),
   drive_perceive: async (env, params) => handleDrivePerceive(env, params),
   drive_touch: async (env, params) => handleDriveTouch(env, params),
@@ -582,7 +582,7 @@ export const TOOLS: MCPToolDefinition[] = [
   },
   {
     name: "graph_shape",
-    description: "Entity surgery — set salience, edit properties, merge duplicates, bulk-archive by age (absorbs mind_entity). Note (C-2, collision-audit.md): `archive_old` sets entities.salience = 'archive' — a salience TIER on the entity, a DIFFERENT mechanism from observations.archived_at (the observation-level timestamp Surgery's mind_archive owns). Same word, unrelated columns/tables — don't expect archived_at-style recoverability semantics here.",
+    description: "Entity surgery — set salience, edit properties, merge duplicates, bulk-archive by age (absorbs mind_entity). Note (C-2, the collision audit): `archive_old` sets entities.salience = 'archive' — a salience TIER on the entity, a DIFFERENT mechanism from observations.archived_at (the observation-level timestamp Surgery's mind_archive owns). Same word, unrelated columns/tables — don't expect archived_at-style recoverability semantics here.",
     inputSchema: {
       type: "object",
       properties: {

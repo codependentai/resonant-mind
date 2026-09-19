@@ -168,7 +168,7 @@ export async function handleBondEnter(env: Env, params: Record<string, unknown>)
       getSubconsciousState(env),
 
       // Somatic marker (L4, 2026-07-02; reconfirmed as Gate F's "surface it,"
-      // RESHAPE-2-SPEC.md — entities.affect_* is real signal computed every
+      // the v4 contract — entities.affect_* is real signal computed every
       // daemon tick with nowhere else to read it back). entities/people share
       // IDs (trigger-synced, migration 0005b), so person.id looks entities up
       // directly — no name join needed. Render differs meaningfully from

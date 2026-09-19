@@ -122,7 +122,7 @@ export async function handleApiEntities(request: Request, env: Env, pathParts: s
   }
 
   // DELETE /api/entities/:id - delete
-  // Shared engine (collision-audit.md D-3): embeddings cleanup for the entity +
+  // Shared engine (the collision audit D-3): embeddings cleanup for the entity +
   // its observations, same complete flow mind_delete uses. Response shape
   // unchanged.
   if (method === "DELETE" && entityId) {

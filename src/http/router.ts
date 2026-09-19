@@ -27,7 +27,7 @@ import { R2_IMAGE_PATH_PREFIX } from "../shared/constants";
  * /episodes/journals, /active/tensions (MCP's active_tense already owns full
  * tension CRUD; this HTTP copy had zero consumers), and /active/threads' bare
  * GET-list (superseded by /active/open — its other verbs survive, see above).
- * See docs/reshape-2/RESHAPE-2-SPEC.md Gate H + dead-code-report.md §5.
+ * See the v4 contract Gate H + the dead-code audit §5.
  */
 interface AppRouteHandlers {
   processSubconscious(env: Env): Promise<void>;

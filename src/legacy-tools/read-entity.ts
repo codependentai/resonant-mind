@@ -6,7 +6,7 @@
  * Reshape 2). graph_look wraps this with the Gate N #2 person rule and
  * Gate F affect-line surfacing — this file has no knowledge of either.
  *
- * collision-audit.md E-3: nominally a read, but recordAccessTracking below is
+ * the shared-engine audit E-3: nominally a read, but recordAccessTracking below is
  * a real hidden write (access_count/last_accessed_at on the returned
  * observations). Same class as mind_search/mind_store_image{view} — flagged
  * so no future "read tools are side-effect-free" assumption gets built on top

@@ -6,7 +6,7 @@
  * index.ts surface.
  */
 
-export const RESONANT_MIND_VERSION = "4.0.0-reshape.1";
+export const RESONANT_MIND_VERSION = "4.0.0";
 export const R2_IMAGE_PATH_PREFIX = "r2://images/";
 
 // Surface pool configuration
@@ -14,7 +14,7 @@ export const SURFACE_POOL_RATIOS = { core: 0.5, novelty: 0.2, dormant: 0.2, edge
 export const VECTOR_SCORE_CORE = 0.75;  // Gemini Embedding 2 scores ~15pts higher than BGE
 export const VECTOR_SCORE_EDGE = 0.55;
 
-// Novelty mechanics — see C1 fix notes in MIND_RESHAPE_PLAN.md
+// Novelty mechanics — see C1 fix notes in the Postgres behavior
 export const NOVELTY_FLOORS = { heavy: 0.3, medium: 0.2, light: 0.1 };
 export const NOVELTY_DECAY_RATES = { heavy: 0.08, medium: 0.12, light: 0.15 };
 export const NOVELTY_TIME_RECOVERY_RATE = 0.005; // per day since last surfaced
@@ -39,7 +39,7 @@ export const REDOLENCE_THRESHOLD = 0.65;           // uncharged memories need th
 export const REDOLENCE_MAX_RISEN = 3;              // a whiff per tick, not a flood
 export const REDOLENCE_MAX_CUES = 5;               // fresh obs walked per tick
 
-// Drive engine — the wanting layer (2026-07-03, DRIVE-LAYER-SPEC §1.2-1.3;
+// Drive engine — the wanting layer (2026-07-03, the drive-layer behavior §1.2-1.3;
 // mechanics ported from Shauna's Anam limbic layer). The environment biases
 // each drive's EFFECTIVE BASELINE (bias-never-cage): total contribution is
 // capped, and fades to zero as the env payload ages — a dark house reads as
