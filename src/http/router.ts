@@ -364,6 +364,22 @@ export async function routeRequest(
 ): Promise<Response> {
   const url = new URL(request.url);
 
+  const isUnsupportedOAuthRoute =
+    url.pathname === "/register"
+    || url.pathname === "/oauth/register"
+    || url.pathname === "/.well-known/oauth-authorization-server"
+    || url.pathname.startsWith("/.well-known/oauth-authorization-server/")
+    || url.pathname === "/.well-known/oauth-protected-resource"
+    || url.pathname.startsWith("/.well-known/oauth-protected-resource/");
+
+  if (isUnsupportedOAuthRoute) {
+    return withSecurityHeaders(
+      jsonResponse({ error: "Not found" }, 404),
+      request,
+      env
+    );
+  }
+
   if (url.pathname === "/health") {
     return withSecurityHeaders(
       jsonResponse({ status: "ok", service: "resonant-mind" }),

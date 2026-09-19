@@ -28,6 +28,7 @@ export async function consolidateRelatedObservations(
       AND o.valid_until IS NULL
       AND o.superseded_by IS NULL
       AND (o.charge != 'metabolized' OR o.charge IS NULL)
+      AND NOT (o.rescued_at IS NOT NULL AND o.last_surfaced_at IS NULL)
     GROUP BY e.id, e.name
     HAVING COUNT(*) >= ${CONSOLIDATION_MIN_OBS}
     ORDER BY COUNT(*) DESC
@@ -41,6 +42,7 @@ export async function consolidateRelatedObservations(
     const obsRows = await env.DB.prepare(`
       SELECT id, content, weight, emotion FROM observations
       WHERE entity_id = ? AND archived_at IS NULL AND valid_until IS NULL AND superseded_by IS NULL
+        AND NOT (rescued_at IS NOT NULL AND last_surfaced_at IS NULL)
       ORDER BY added_at DESC
     `).bind(candidate.id).all();
 

@@ -46,15 +46,17 @@ export async function archiveObservation(env: Env, observationId: number): Promi
  * actually drives resurfacing through the scorer. Rescue should make a
  * memory MORE likely to come back, not less.
  *
- * Deliberate side effect: surface_count is NOT bumped
- * here — a rescued observation may re-qualify as orphan-eligible until it
- * genuinely surfaces on its own. That is the intent (rescue = eligibility,
- * not a fake surfacing event), not an oversight.
+ * Deliberate side effect: surface_count is NOT bumped here. `rescued_at`
+ * records the rescue and, while `last_surfaced_at` remains NULL, keeps daemon
+ * recalculation, access decay, and orphan identification from undoing it.
+ * A genuine surface ends that hold without pretending the rescue itself was a
+ * surfacing event.
  */
 export async function rescueObservation(env: Env, observationId: number): Promise<void> {
   await env.DB.prepare(
     `UPDATE observations
-     SET archived_at = NULL, novelty_score = 1.0, last_surfaced_at = NULL
+     SET archived_at = NULL, novelty_score = 1.0, last_surfaced_at = NULL,
+         rescued_at = NOW()
      WHERE id = ?`
   ).bind(observationId).run();
 }

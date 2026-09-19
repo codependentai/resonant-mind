@@ -84,6 +84,25 @@ describe.runIf(runDatabaseTests)('fresh-v4 PostgreSQL contracts', () => {
     await migrationClient?.end();
   });
 
+  it('records the rescued_at migration in the fresh ledger and schema', async () => {
+    const ledger = await migrationClient!.query(
+      `SELECT version FROM schema_migrations WHERE version = '0018_rescued_at.sql'`,
+    );
+    expect(ledger.rows).toEqual([{ version: '0018_rescued_at.sql' }]);
+
+    const column = await migrationClient!.query(`
+      SELECT data_type, col_description('observations'::regclass, ordinal_position::integer) AS comment
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'observations'
+        AND column_name = 'rescued_at'
+    `);
+    expect(column.rows).toEqual([{
+      data_type: 'timestamp with time zone',
+      comment: expect.stringContaining('pending'),
+    }]);
+  }, 60_000);
+
   it('writes a standalone observation and reads its version history through the released schema', async () => {
     const seeded = await migrationClient!.query(
       `INSERT INTO entities (name, entity_type, primary_context)

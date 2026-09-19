@@ -59,6 +59,7 @@ export async function recalcNoveltyScores(env: Env): Promise<void> {
     )
     WHERE archived_at IS NULL
       AND (charge != 'metabolized' OR charge IS NULL)
+      AND NOT (rescued_at IS NOT NULL AND last_surfaced_at IS NULL)
   `).run();
 }
 
@@ -96,6 +97,7 @@ export async function decayUnaccessed(env: Env): Promise<void> {
         AND COALESCE(access_count, 0) = 0
         AND added_at < datetime('now', '-${ACCESS_DECAY_AGE_DAYS} days')
         AND novelty_score > 0.3
+        AND NOT (rescued_at IS NOT NULL AND last_surfaced_at IS NULL)
     `).run();
   } catch (e) {
     // Code-aware catch: tolerate missing-schema errors only.
